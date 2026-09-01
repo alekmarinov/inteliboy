@@ -1,0 +1,39 @@
+#!/bin/sh
+# A speech adapter (out half) for InteliBoy, wrapping avatari's `avatari-say`.
+#
+#     adapters/espeak/speak "the text to say"
+#     -> {"visemes":[[0.012,"TH"],...],"audio":"/tmp/....wav"}  on stdout
+#
+# It lives here and not in cogiti for the same reason the Anthropic adapter
+# does: cogiti names no implementation of any port, and which engine speaks is
+# a deployment's choice. cogiti knows only the contract in
+# `../cogiti/src/cogiti/speech.py`.
+#
+# Why this is a wrapper and not a reimplementation: avatari already runs text
+# through espeak-ng's C API, takes the *phoneme boundaries it reports*, and maps
+# them through `data/visemes.txt` — the same table its renderer uses to pick
+# mouth shapes. Deriving timings anywhere else would mean a second mapping to
+# keep in step with that file, and it would be wrong first.
+#
+# `--print` makes it emit the message instead of sending it, which is the seam
+# that matters: **cogiti sends its own `speak`**, over its own connection, so
+# the presentation port stays the only thing talking to the renderer. Letting
+# avatari-say send it directly would work today and would put a second writer
+# on the socket the moment anything needs sequencing.
+#
+# Stage 2 note: Piper replaces the *voice* but not the phonemiser — it uses
+# espeak-ng for that — so `avatari-say --audio-from piper.wav` rescales these
+# same timings onto better audio, and nothing here changes.
+set -eu
+
+AVATARI=${AVATARI_DIR:-../avatari}
+SAY=${AVATARI_SAY:-$AVATARI/build/desktop/avatari-say}
+WAV=${SPEECH_WAV:-/tmp/cogiti-utterance.wav}
+
+[ -x "$SAY" ] || { echo "no avatari-say at $SAY" >&2; exit 1; }
+
+# --print writes the JSON to stdout; the engine's own chatter goes to stderr,
+# where cogiti ignores it. Run from avatari's directory so its relative
+# data/visemes.txt resolves.
+cd "$(dirname "$SAY")/../.."
+exec "$SAY" --print --wav "$WAV" ${ESPEAK_VOICE:+--voice "$ESPEAK_VOICE"} "$@"
