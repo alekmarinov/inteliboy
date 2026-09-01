@@ -194,6 +194,15 @@ talk:
 # that claims success having started nothing is worse than one that fails.
 AVATARI_SOCK ?= /tmp/avatari.sock
 
+# AUDIO=1 passes --audio, which opens ALSA. Off by default here because this
+# workstation has no sound card at all: `aplay -l` finds none, WSLg offers only
+# a PulseAudio bridge, and avatari talks to ALSA directly. On the appliance the
+# question does not arise — /etc/avatari.conf sets audio.enabled = true and the
+# image carries alsa-lib, alsa-utils and an alsactl that unmutes at boot.
+#
+# The mouth does not depend on this. Visemes run against audio_start_ns whether
+# or not anything plays, which is why the head is demonstrable here at all.
+
 renderer:
 	@$(MAKE) -C $(AVATARI) PLATFORM=desktop >/dev/null
 	@python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); \
@@ -201,7 +210,7 @@ renderer:
 	  && echo "avatari already up on $(AVATARI_SOCK)" && exit 0 || true; \
 	rm -f $(AVATARI_SOCK); \
 	( cd $(AVATARI) && exec ./build/desktop/avatari --socket $(AVATARI_SOCK) \
-	    >/tmp/avatari.log 2>&1 & ); \
+	    $(if $(AUDIO),--audio,) >/tmp/avatari.log 2>&1 & ); \
 	for i in $$(seq 1 60); do \
 	  python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); \
 	    sys.exit(0 if not s.connect_ex('$(AVATARI_SOCK)') else 1)" 2>/dev/null \
@@ -213,3 +222,25 @@ renderer:
 
 ## face: the renderer, then cogiti talking to it
 face: renderer talk
+
+## say: move the mouth, through cogiti's own speech and presentation path.
+## No model, no API key, no cost — for when the question is "does the face
+## work" rather than "does the assistant work".
+##
+##     make say TEXT="Hello, I am InteliBoy."
+TEXT ?= Hello. I am InteliBoy, and this is what my mouth does when I talk.
+
+.PHONY: say
+say: renderer
+	@PYTHONPATH=$(COGITI)/src python3 -c "import asyncio,sys,time; \
+	from cogiti import present, speech; \
+	from cogiti.adapters import presentation; \
+	a=presentation.Presentation('$(AVATARI_SOCK)', on_warn=lambda m: print(m)); \
+	p=present.Presenter(a); \
+	sp=speech.Speech(['adapters/espeak/speak'], on_warn=lambda m: print(m)); \
+	m=asyncio.new_event_loop().run_until_complete(sp.marks(sys.argv[1])); \
+	sys.exit('no marks from the speech adapter') if not m else None; \
+	p.result({'say': sys.argv[1], 'show': sys.argv[1]}); \
+	p.speak(m); \
+	print('%d visemes over %.2fs' % (len(m['visemes']), m['visemes'][-1][0])); \
+	time.sleep(m['visemes'][-1][0] + 1.5)" "$(TEXT)"
