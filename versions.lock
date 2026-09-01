@@ -1,0 +1,26 @@
+# The current set. Written by 'make lock'.
+#
+# This records what the components are, not that they have been run
+# together. It earns the word 'proven' only once an image built from
+# these commits has booted — write that below, with the date, when it
+# has. A lock that claims more than it knows is worse than none.
+# Generated 2026-09-01T20:19:19Z
+avatari    = { version = "0.1.0-2-g3d2d028", commit = "3d2d0284f92192ea8a5629d1fc80cf63b65cb4ed" }
+reflexi    = { version = "0.1.0", commit = "330400e953b8342631ffc63d8698b401a3330442" }
+cogiti     = { version = "0.1.0", commit = "d83123a2cd5802a62f3001c9a3568752dc044643" }
+lfs        = { version = "LFS_11.2-3-g98e83fd", commit = "98e83fdec3c4af7a4c2e0b7eb684d2b30bebce8b" }
+
+# NOT PROVEN. Recorded 2026-09-01.
+#
+# An image was built and booted today and it worked — renderer up, ssh by key,
+# root:*, awk present. But it does not correspond to the set above. The image
+# carries avatari from a package built 2026-08-31 09:33, whose content became
+# commit afc0059; avatari's HEAD moved to 3d2d028 while that image was being
+# verified, adding `annotate` and `camera`. Two features named here have never
+# been in an image.
+#
+# This is a flaw in `make lock` and not only in this run: it reads HEAD at lock
+# time, and nothing ties it to what a build actually consumed. It is truthful
+# only when run immediately after a build with no commit in between, and
+# nothing enforces that. Until it does, read this file as "what the components
+# are now", and trust the paragraph below it for what was proven.

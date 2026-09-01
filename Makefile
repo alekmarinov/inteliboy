@@ -82,7 +82,12 @@ verify: status test
 # commit rather than being left out - being absent from the lock and being
 # unreleased look the same otherwise.
 lock:
-	@{ echo "# The last set proven to work together. Written by 'make lock'."; \
+	@{ echo "# The current set. Written by 'make lock'."; \
+	   echo "#"; \
+	   echo "# This records what the components are, not that they have been run"; \
+	   echo "# together. It earns the word 'proven' only once an image built from"; \
+	   echo "# these commits has booted — write that below, with the date, when it"; \
+	   echo "# has. A lock that claims more than it knows is worse than none."; \
 	   echo "# Generated $$(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
 	   for p in $$($(PY) paths); do \
 	     [ -d "$$p/.git" ] || continue; \
