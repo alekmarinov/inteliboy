@@ -1,0 +1,53 @@
+# InteliBoy - the packages added on top of the core.
+#
+# The appliance runs one program. This list is the runtime closure of avatari
+# and grub, computed with 'make closure PACKAGES="x-make-avatari 5-make-grub"'
+# and put back into build order, plus two things no dependency graph can see:
+#
+#   the kernel        every distro names its own now, see distros/core
+#   alsa-utils        alsactl unmutes the mixer at boot; nothing links it
+#   dejavu fonts      avatari opens the face by path from /etc/avatari.conf,
+#                     so nothing links it and 'make check' cannot miss it
+#                     either - it simply has no way to know
+#
+# Worth knowing what is in here and why it looks wrong: the X client libraries
+# (libX11, libxcb, libXau, libXdmcp) and the font stack (fontconfig, freetype,
+# harfbuzz) are pulled in by Mesa, not by avatari. Our Mesa is the desktop one,
+# built -Dplatforms=x11 -Dglx=dri, so libGL links the X libraries even though
+# there is no X server here to talk to. A Mesa built -Dplatforms= would drop
+# every one of them. That is the first thing to trim once this boots.
+#
+# gcc is here for libstdc++ and libgcc_s, which Mesa needs and which LFS ships
+# as part of the compiler package. It is not here so the appliance can compile.
+#
+# Lines starting with # and empty lines are ignored, the order is the order the
+# packages are installed in.
+
+8.7-make-bzip2.tar.gz
+8.11-make-file.tar.gz
+8.21-make-gmp.tar.gz
+8.22-make-mpfr.tar.gz
+8.23-make-mpc.tar.gz
+8.29-make-gcc.tar.gz
+8.40-make-expat.tar.gz
+linux-kernel.tar.gz
+9-make-icu.tar.gz
+10-make-libpng.tar.gz
+10-make-freetype.tar.gz
+10-make-graphite2.tar.gz
+10-make-harfbuzz.tar.gz
+10-make-fontconfig.tar.gz
+24-make-libXau.tar.gz
+24-make-libXdmcp.tar.gz
+24-make-libxcb.tar.gz
+24-make-xorg-libraries.tar.gz
+24-make-libdrm.tar.gz
+24-make-mesa.tar.gz
+42-make-alsa-lib.tar.gz
+42-make-alsa-utils.tar.gz
+4-make-openssh.tar.gz
+avatari.tar.gz
+avatari-heads.tar.gz
+avatari-voices.tar.gz
+24-make-dejavu-fonts.tar.gz
+5-make-grub.tar.gz

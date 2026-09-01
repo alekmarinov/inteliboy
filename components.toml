@@ -1,0 +1,53 @@
+# Every project this orchestrator knows about.
+#
+# `path` is relative to this file. They are ".." today because the components
+# are still siblings of this repo; after moving them in, each becomes just its
+# own name. Nothing else changes.
+#
+# `role`      component  — ours, we change it freely
+#             tool       — external. We propose and pin, we do not patch.
+# `owns`      the contracts this repo is the authority on (docs/subprojects.md)
+# `test`      what the orchestrator runs to verify. "" means it cannot yet
+#             tell us we broke it — see docs/DEVELOPMENT.md §13.
+
+[avatari]
+path = "../avatari"
+role = "component"
+lang = "C11"
+owns = ["scene-protocol", "speak-protocol"]
+test = "make PLATFORM=desktop && make check-config"
+note = "renderer. Owns layout and everything on screen. No behavioural suite yet."
+
+[reflexi]
+path = "../reflexi"
+role = "component"
+lang = "C11 + python"
+owns = ["decision-contract", "blob-format", "intent-registry"]
+test = "make test && make eval"
+note = "the only repo whose tests currently prove something. Keep it that way."
+
+[cogiti]
+path = "../cogiti"
+role = "component"
+lang = "python"
+owns = ["agenti-protocol", "audi-protocol", "vidi-protocol", "service-manifest", "command-table"]
+test = "make test"
+note = "slice 1: the job and protocol layer. Had a test command from its first line of code."
+
+[lfs]
+path = "../lfs"
+role = "tool"
+lang = "shell"
+owns = ["package-recipe-format", "distro-format"]
+test = "make deps-verify && make deps-check"
+note = "a build tool. Holds its own example distros and no file of ours. The orchestrator session edits it but never commits it; no agent writes there at all. See docs/lfs.md."
+
+# --- not yet created. Listed so the orchestrator knows they are coming and
+# --- does not invent a home for their work inside cogiti.
+#
+# [audi]     ears and voice     owns audi-protocol
+# [vidi]     eyes and identity  owns vidi-protocol
+# [agenti]   the job runner     consumes agenti-protocol
+# [memori]   knowledge base     library, no protocol
+# [custodi]  sandbox + secrets  owns nothing on the wire
+# [probi]    harness + fakes    owns the scripted-session format

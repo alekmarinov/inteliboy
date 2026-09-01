@@ -1,0 +1,85 @@
+#!/bin/bash
+########################################################################
+# Begin alsa
+#
+# Description : Put the mixer into a state that can make a sound
+#
+# ALSA mixers come up muted on most codecs. The BLFS script for this
+# calls 'alsactl restore' and nothing else, which is right on a machine
+# that has been configured once by hand - and wrong on an appliance,
+# where the first boot has no /var/lib/alsa/asound.state to restore
+# from. restore then fails, the mixer stays at its power-on defaults,
+# and the result is silence with no error anywhere.
+#
+# So: initialise when there is no saved state, restore when there is, and
+# save on the way down - K35alsa in rc0.d and rc6.d, which run before
+# K96mountfs remounts the root file system read only. Without that link the
+# stop case never runs and every boot starts from the defaults again.
+# 'alsactl init' applies the defaults ALSA ships for the detected codec,
+# which unmutes and sets sane levels.
+#
+# This runs before the renderer, and both run before udev. That is only
+# possible because the HDA codec drivers are built into the InteliBoy
+# kernel rather than modules - as modules udev would have to load them
+# first and the card would not exist yet.
+########################################################################
+
+### BEGIN INIT INFO
+# Provides:          alsa
+# Required-Start:
+# Should-Start:
+# Required-Stop:     $local_fs
+# Default-Start:     S
+# Default-Stop:      0 6
+# Short-Description: Restores or initialises the ALSA mixer.
+# Description:       Restores the saved mixer levels, or initialises them
+#                    on a system that has none saved yet.
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+STATE=/var/lib/alsa/asound.state
+
+case "${1}" in
+   start)
+      # No sound card at all is not an error worth failing the boot for:
+      # the renderer runs fine in silence by design.
+      if [ ! -d /proc/asound ] || [ -z "$(ls /proc/asound 2>/dev/null)" ]; then
+         log_info_msg "No sound card present, skipping ALSA..."
+         evaluate_retval
+         exit 0
+      fi
+
+      if [ -f "$STATE" ]; then
+         log_info_msg "Restoring ALSA mixer levels..."
+         /usr/sbin/alsactl --no-ucm restore
+      else
+         log_info_msg "Initialising ALSA mixer levels..."
+         /usr/sbin/alsactl --no-ucm init
+      fi
+      evaluate_retval
+      ;;
+
+   stop)
+      # Only worth saving if the root file system is writable, which it is
+      # not during the early part of a boot.
+      if [ -d /proc/asound ] && touch /var/lib/alsa/.probe 2>/dev/null; then
+         rm -f /var/lib/alsa/.probe
+         log_info_msg "Saving ALSA mixer levels..."
+         /usr/sbin/alsactl --no-ucm store
+         evaluate_retval
+      fi
+      ;;
+
+   restart)
+      ${0} stop
+      ${0} start
+      ;;
+
+   *)
+      echo "Usage: ${0} {start|stop|restart}"
+      exit 1
+      ;;
+esac
+
+# End alsa

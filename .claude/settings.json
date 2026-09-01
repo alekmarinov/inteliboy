@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make list)", "Bash(make status)", "Bash(make dirty)",
+      "Bash(make test)", "Bash(make verify)",
+      "Bash(git -C * status*)", "Bash(git -C * log*)", "Bash(git -C * diff*)",
+      "Bash(git -C * branch*)", "Bash(git -C * rev-parse*)",
+      "Bash(python3 tools/components.py*)"
+    ]
+  }
+}

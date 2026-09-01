@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+versions.lock.bak
+
+# The image and the tree it is made from. Multi-gigabyte and root-owned; 'rm
+# -rf' on it needs sudo.
+/build/
+
+# Component tarballs, staged here by 'make stage' from each component's own
+# 'make dist'. The checksums beside them are committed; the tarballs are not -
+# they are built output and they are large.
+/distros/*/sources/*.tar.*

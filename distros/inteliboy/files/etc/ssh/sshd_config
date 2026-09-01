@@ -1,0 +1,48 @@
+# InteliBoy's sshd configuration.
+#
+# This replaces the stock sshd_config the openssh package installs. It has to
+# be a whole file rather than a fragment: the stock one ships every option
+# commented out, so the compiled-in defaults apply, and the default for
+# PermitRootLogin is 'prohibit-password' - root cannot log in with a password
+# at all. There is no Include directive in it either, so a drop-in would do
+# nothing. The distro overlay is applied after the packages, so this wins.
+#
+# What this is for: this is the development distro, and ssh is the affordance
+# that makes it debuggable at all - it has no getty on tty1 and a renderer that
+# owns the screen. Access is by key, from /root/.ssh/authorized_keys, so the
+# image contains no secret: a copy of it grants nobody anything.
+#
+# Measured on the hardware before choosing this. 'passwd -l root' - which is
+# what build-distro.sh leaves behind when no password is configured - denies
+# *public key* logins too, not just passwords: this sshd is built without PAM
+# and treats a '!'-prefixed shadow field as a locked account rather than an
+# unusable password. An appliance built that way is unreachable. A '*' field
+# denies every password and leaves key authentication working, which is what
+# this distro asks for.
+
+# Root logs in by key and by nothing else. 'prohibit-password' is the precise
+# form: root may authenticate, but not with anything typed.
+PermitRootLogin prohibit-password
+PubkeyAuthentication yes
+
+# Both of these are already the compiled-in defaults. They are written down
+# because relying on an unstated default is exactly what went wrong the first
+# time: the stock file leaves PermitRootLogin commented out, its default is
+# 'prohibit-password', and root could not log in at all until this file said
+# otherwise. A default that is not written down is a default that changes.
+PasswordAuthentication no
+PermitEmptyPasswords no
+
+# There is deliberately no 'UsePAM' here. OpenSSH is built without linux-pam,
+# and a build without it rejects the option outright - 'Unsupported option
+# UsePAM' on every start - rather than accepting it as a no-op. sshd
+# authenticates against /etc/shadow either way.
+
+# The host keys are generated on first boot by the boot script, not shipped:
+# a key baked into the package would be the same on every device built from
+# it, with the private half sitting in the build tree.
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+Subsystem sftp /usr/libexec/sftp-server

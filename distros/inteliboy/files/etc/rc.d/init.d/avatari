@@ -1,0 +1,140 @@
+#!/bin/bash
+########################################################################
+# Begin avatari
+#
+# Description : Start the renderer as early as the kernel allows
+#
+# The renderer is the reason this machine exists, so it does not wait in
+# runlevel 3 behind the logger, the network and the cron daemon. It is
+# started from rcS, immediately after the virtual file systems are
+# mounted, and everything else boots behind it.
+#
+# That is possible because its dependencies are met before init runs:
+#
+#   /dev/dri/card0, /dev/input/event*   devtmpfs, mounted by the kernel
+#                                       itself (CONFIG_DEVTMPFS_MOUNT=y)
+#   /run                                tmpfs, mounted by S00mountvirtfs
+#   fonts, head model, config           on the root file system
+#
+# Nothing here needs udev, and udev is what the wait is for: the two
+# 'udevadm settle' calls in S10udev and S50udev_retry are the largest
+# single block in this boot.
+#
+# It runs as root, which is why it can start before udev has applied the
+# video and input group permissions. On a sealed appliance that is the
+# usual trade; it is a deliberate choice and not a side effect.
+#
+# The loop restarts the renderer if it exits, but gives up after three
+# starts that die inside ten seconds and puts a login prompt on tty1
+# instead. A renderer that cannot start will not start on the fourth
+# attempt either, and an appliance that loops forever on it is one you
+# cannot get into at all.
+########################################################################
+
+### BEGIN INIT INFO
+# Provides:          avatari
+# Required-Start:    $local_fs
+# Should-Start:
+# Required-Stop:
+# Default-Start:     S
+# Default-Stop:
+# Short-Description: Starts the avatari renderer.
+# Description:       Starts the avatari renderer on the console framebuffer.
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+AVATARI=/usr/bin/avatari
+PIDFILE=/run/avatari.pid
+
+# The log lives on the tmpfs, not on the root file system, and that is not a
+# stylistic choice. This starts before S40mountfs, so / is still read only -
+# opening a log under /var/log fails, and with it the whole command. /run is
+# mounted by S00mountvirtfs and writable from the first moment. The stop case
+# copies it somewhere permanent once the file system allows it.
+LOG=/run/avatari.log
+SAVED=/var/log/avatari.log
+
+case "${1}" in
+   start)
+      # The rescue menu entry passes inteliboy.norender, which is how you get
+      # a usable machine when the renderer is the thing that is broken.
+      if grep -qw inteliboy.norender /proc/cmdline 2>/dev/null; then
+         # Hand back the console this would otherwise have covered. Without
+         # this the rescue entry leaves a blank screen, because tty1 carries
+         # no getty - and Alt-F2 is not something anyone should have to guess
+         # while looking at a machine that will not start.
+         log_info_msg "Renderer disabled, starting a console on tty1..."
+         /sbin/agetty --noclear --autologin root tty1 9600 </dev/null >/dev/null 2>&1 &
+         evaluate_retval
+         exit 0
+      fi
+      log_info_msg "Starting the avatari renderer..."
+      if [ ! -x "$AVATARI" ]; then
+         log_failure_msg2
+         exit 1
+      fi
+      # Supervised in the background: the boot must not block on the
+      # renderer, and the renderer must come back if it dies.
+      (
+         echo $$ > "$PIDFILE"
+         fails=0
+         while true; do
+            started=$(cut -d. -f1 /proc/uptime)
+            "$AVATARI" >>"$LOG" 2>&1
+            ran=$(( $(cut -d. -f1 /proc/uptime) - started ))
+
+            # A renderer that ran for a while and then died is worth
+            # restarting. One that dies immediately, repeatedly, is not
+            # going to start on the next attempt either - it is a missing
+            # font or a bad path, and looping on it forever leaves a
+            # machine with no console and no way in. Hand the console back
+            # instead, and say why in the log.
+            if [ "$ran" -lt 10 ]; then
+               fails=$(( fails + 1 ))
+            else
+               fails=0
+            fi
+            if [ "$fails" -ge 3 ]; then
+               echo "avatari failed to stay up 3 times; starting a console on tty1" \
+                   >>"$LOG"
+               exec /sbin/agetty --noclear --autologin root tty1 9600
+            fi
+            sleep 1
+         done
+      ) </dev/null >/dev/null 2>&1 &
+      evaluate_retval
+      ;;
+
+   stop)
+      log_info_msg "Stopping the avatari renderer..."
+      if [ -f "$PIDFILE" ]; then
+         kill -- -"$(cat "$PIDFILE")" 2>/dev/null || true
+         rm -f "$PIDFILE"
+      fi
+      killall -q avatari || true
+      # Keep the log across the reboot, now that / can be written to. Without
+      # this the only record of why a boot went wrong dies with the tmpfs.
+      if [ -f "$LOG" ] && touch "$SAVED" 2>/dev/null; then
+         cp -f "$LOG" "$SAVED" 2>/dev/null || true
+      fi
+      evaluate_retval
+      ;;
+
+   restart)
+      ${0} stop
+      sleep 1
+      ${0} start
+      ;;
+
+   status)
+      statusproc "$AVATARI"
+      ;;
+
+   *)
+      echo "Usage: ${0} {start|stop|restart|status}"
+      exit 1
+      ;;
+esac
+
+# End avatari

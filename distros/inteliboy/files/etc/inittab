@@ -1,0 +1,42 @@
+# Begin /etc/inittab
+#
+# InteliBoy runs one program. tty1 carries no getty: the renderer owns the
+# console framebuffer from rcS onwards, and a login prompt drawn into the same
+# framebuffer fights it for the screen.
+#
+# tty2 keeps its getty, but do not mistake it for the rescue path. While the
+# renderer holds DRM master it owns the scanout buffer, so switching VT does not
+# change what is on screen - measured: Alt-F2 gives a shell you cannot see. It
+# is useful only once the renderer has exited or if a serial console is attached.
+#
+# The way in when the renderer is what is broken is the GRUB entry
+# '<name> (rescue: console only)'. Press Esc during the first second of boot to
+# reach the menu - it is hidden, not absent. It passes inteliboy.norender,
+# which the avatari boot script checks before starting anything.
+
+id:3:initdefault:
+
+si::sysinit:/etc/rc.d/init.d/rc S
+
+l0:0:wait:/etc/rc.d/init.d/rc 0
+l1:S1:wait:/etc/rc.d/init.d/rc 1
+l2:2:wait:/etc/rc.d/init.d/rc 2
+l3:3:wait:/etc/rc.d/init.d/rc 3
+l4:4:wait:/etc/rc.d/init.d/rc 4
+l5:5:wait:/etc/rc.d/init.d/rc 5
+l6:6:wait:/etc/rc.d/init.d/rc 6
+
+ca:12345:ctrlaltdel:/sbin/shutdown -t1 -a -r now
+
+su:S06:once:/sbin/sulogin
+s1:1:respawn:/sbin/sulogin
+
+# --autologin, because there is no password to type. The root account's shadow
+# field is '*': no password authenticates it anywhere, and remote access is by
+# key. Reaching a physical console on this device already means holding it, so
+# the console asks for nothing rather than asking for something that cannot be
+# answered.
+2:2345:respawn:/sbin/agetty --autologin root tty2 9600
+3:2345:respawn:/sbin/agetty --autologin root tty3 9600
+
+# End /etc/inittab

@@ -1,0 +1,23 @@
+# Boot menu entries beyond the default and the verbose console, which
+# build-image.sh derives from KERNEL_CMDLINE on its own.
+#
+#     <title>|<kernel command line>
+#
+# The title is shown after the distro name. Press Esc during the first second
+# of boot to reach the menu at all - GRUB_TIMEOUT is 3 and the menu is hidden.
+
+# For a machine whose only GPU is the NVIDIA one. distro.conf blacklists
+# nouveau because it oopses probing the discrete card on the GL553VE laptop -
+# gm200_devinit_post, then 'preinit failed with -110' - and an oops prints at a
+# priority no loglevel silences, so the trace lands on screen whatever else is
+# quietened. The laptop's panel is driven by i915 regardless, so the default
+# entry loses nothing there. The X79 desktop has nothing else, falls back to
+# simpledrm and software rendering with nouveau blacklisted, and needs this
+# entry. Same command line as the default, without the blacklist.
+with nouveau|net.ifnames=0 quiet loglevel=0 vt.global_cursor_default=0 console=tty3 udev.log_level=err
+
+# The way in when the renderer is what is broken. Boots without the quiet
+# flags and tells the init scripts not to start the renderer, so an appliance
+# with no getty on tty1 and a respawning renderer lands on a login prompt
+# instead of a black screen.
+rescue: console only|net.ifnames=0 inteliboy.norender
