@@ -220,6 +220,11 @@ renderer:
 	echo "avatari did not come up within 15s:"; sed "s/^/    /" /tmp/avatari.log; \
 	exit 1
 
+## audio-check: say which link in the sound chain is broken
+.PHONY: audio-check
+audio-check:
+	@tools/audio-check.sh
+
 ## face: the renderer, then cogiti talking to it
 face: renderer talk
 
