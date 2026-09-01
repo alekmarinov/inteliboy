@@ -10,3 +10,19 @@ versions.lock.bak
 # 'make dist'. The checksums beside them are committed; the tarballs are not -
 # they are built output and they are large.
 /distros/*/sources/*.tar.*
+
+# Credentials, never. Named broadly on purpose: the failure mode is a file
+# nobody thought to ignore being swept up by 'git add -A', and a pattern that
+# only covers the one file you remember is not much better than nothing.
+/secrets
+/secrets.d/
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# An image carrying a credential. Never a release artifact, never shared, and
+# never confusable with the image it was copied from — which is what the name
+# is for.
+*-provisioned.img

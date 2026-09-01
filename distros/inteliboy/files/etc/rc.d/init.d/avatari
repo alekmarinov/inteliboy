@@ -112,7 +112,12 @@ case "${1}" in
          kill -- -"$(cat "$PIDFILE")" 2>/dev/null || true
          rm -f "$PIDFILE"
       fi
-      killall -q avatari || true
+      # pkill, not killall: killall comes from psmisc, which this distro does
+      # not install, so the line was 'command not found' on every stop — and
+      # the stop reported OK anyway. pkill is procps-ng, which is here because
+      # pgrep is. Found when a push replaced the binary under a process this
+      # was supposed to have stopped, leaving it running a deleted inode.
+      pkill -x avatari 2>/dev/null || true
       # Keep the log across the reboot, now that / can be written to. Without
       # this the only record of why a boot went wrong dies with the tmpfs.
       if [ -f "$LOG" ] && touch "$SAVED" 2>/dev/null; then

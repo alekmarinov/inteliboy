@@ -1,7 +1,7 @@
 # The orchestrator's own verbs. Everything here is something the session runs
 # itself rather than asking an agent whether it worked.
 .PHONY: help list status test verify lock sync dirty \
-        distro-packages distro check image qemu stage
+        distro-packages distro check image qemu stage push seed-image
 
 PY := python3 tools/components.py
 
@@ -12,6 +12,14 @@ PY := python3 tools/components.py
 LFS    := ../lfs
 DISTRO := $(CURDIR)/distros/inteliboy
 OUT    := $(CURDIR)/build
+
+# Putting one component onto a running appliance, without an image.
+#   make push HOST=root@192.168.1.174
+# COMPONENT names both the package and the init script, which is the same word
+# for everything shipped so far.
+comma := ,
+COMPONENT ?= avatari
+HOST      ?=
 
 help:
 	@echo "make list      what components exist and where"
@@ -29,6 +37,8 @@ help:
 	@echo "make check             resolve every binary in it against its libraries"
 	@echo "make image             turn it into build/image.img"
 	@echo "make qemu              boot that image"
+	@echo "make push HOST=root@..  put one component on a running box, no image"
+	@echo "make seed-image SECRETS=name  a copy of the image carrying a secret"
 
 list:
 	@$(PY) list
@@ -133,3 +143,21 @@ image:
 
 qemu:
 	$(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
+
+# The fast loop: build the package, put usr/ on the device, restart, verify.
+# Minutes rather than an image. It pushes usr/ only and says what it skipped —
+# a package also carries /etc, which the distro overlay owns, and pushing that
+# would replace a device's configuration with the build default.
+push:
+	@test -n "$(HOST)" || { echo "HOST= is required, e.g. make push HOST=root@192.168.1.174"; exit 1; }
+	@tools/push.sh $(HOST) $(LFS)/packages/$(COMPONENT).tar.gz $(COMPONENT)
+
+# Write secrets into a *copy* of the image, for a device that cannot be reached
+# after it boots. Prefer provisioning a booted device: a credential inside an
+# image is in every copy of it and revoking means reflashing rather than
+# deleting a file. The copy is named -provisioned.img and is gitignored, so it
+# cannot be mistaken for the image you would hand to somebody.
+#   make seed-image SECRETS=anthropic.api_key
+seed-image:
+	@test -n "$(SECRETS)" || { echo "SECRETS= is required, e.g. make seed-image SECRETS=anthropic.api_key"; exit 1; }
+	@tools/seed-image.sh $(OUT)/image.img $(subst $(comma), ,$(SECRETS))
