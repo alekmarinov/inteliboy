@@ -179,12 +179,37 @@ talk:
 	@$(COGITI)/bin/cogiti --conf=$(CONF) 2>&1
 
 ## renderer: start avatari's desktop build in the background
+#
+# Two things here are deliberate, and the first version had neither.
+#
+# The liveness test is "does something answer on the socket", not "does a
+# process match a string". `pgrep -f 'avatari --socket /tmp/avatari.sock'`
+# matches the shell running this very recipe, because make's `sh -c` command
+# line contains the pattern — so it always found avatari, never started one,
+# and cheerfully printed that it had.
+#
+# And it waits for the socket rather than sleeping. A fixed sleep is a race
+# either way: too short on a cold GL init, wasted every other time. If the
+# renderer does not come up, this says so and shows its log, because a target
+# that claims success having started nothing is worse than one that fails.
+AVATARI_SOCK ?= /tmp/avatari.sock
+
 renderer:
 	@$(MAKE) -C $(AVATARI) PLATFORM=desktop >/dev/null
-	@pgrep -f "build/desktop/avatari --socket /tmp/avatari.sock" >/dev/null \
-		|| ( cd $(AVATARI) && ./build/desktop/avatari --socket /tmp/avatari.sock \
-		     >/tmp/avatari.log 2>&1 & )
-	@sleep 2 && echo "avatari on /tmp/avatari.sock  (log: /tmp/avatari.log)"
+	@python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); \
+	  sys.exit(0 if not s.connect_ex('$(AVATARI_SOCK)') else 1)" 2>/dev/null \
+	  && echo "avatari already up on $(AVATARI_SOCK)" && exit 0 || true; \
+	rm -f $(AVATARI_SOCK); \
+	( cd $(AVATARI) && exec ./build/desktop/avatari --socket $(AVATARI_SOCK) \
+	    >/tmp/avatari.log 2>&1 & ); \
+	for i in $$(seq 1 60); do \
+	  python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); \
+	    sys.exit(0 if not s.connect_ex('$(AVATARI_SOCK)') else 1)" 2>/dev/null \
+	    && echo "avatari on $(AVATARI_SOCK)  (log: /tmp/avatari.log)" && exit 0; \
+	  sleep 0.25; \
+	done; \
+	echo "avatari did not come up within 15s:"; sed "s/^/    /" /tmp/avatari.log; \
+	exit 1
 
 ## face: the renderer, then cogiti talking to it
 face: renderer talk
