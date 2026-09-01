@@ -26,3 +26,7 @@ versions.lock.bak
 # never confusable with the image it was copied from — which is what the name
 # is for.
 *-provisioned.img
+
+# An adapter brings its own dependencies; cogiti has none. The virtualenv is
+# the adapter's environment, not a thing to commit.
+.venv/
