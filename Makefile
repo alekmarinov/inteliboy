@@ -37,6 +37,12 @@ list:
 # enforces that, because tool grants are per tool and not per directory. So it
 # is detected instead: run this before and after any fan-out, and a component
 # that went dirty without being in the brief is the alarm.
+#
+# The unpushed count distinguishes "no upstream" from zero. It used to report
+# both as 0, because 'git log @{u}..' errors without a tracking branch and the
+# error was swallowed — so a repository that had never been pushed looked
+# exactly like one that was fully up to date. That is the worst confusion
+# available to the one command this process uses to know where things stand.
 status:
 	@$(PY) test >/dev/null 2>&1 || true
 	@for p in $$($(PY) paths); do \
@@ -44,8 +50,12 @@ status:
 	  n=$$(basename $$p); \
 	  b=$$(git -C $$p rev-parse --abbrev-ref HEAD 2>/dev/null); \
 	  d=$$(git -C $$p status --porcelain 2>/dev/null | wc -l); \
-	  a=$$(git -C $$p log --oneline @{u}.. 2>/dev/null | wc -l); \
-	  printf "  %-10s %-24s %3s dirty  %3s unpushed\n" "$$n" "$$b" "$$d" "$$a"; \
+	  if git -C $$p rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then \
+	    a="$$(git -C $$p log --oneline @{u}.. 2>/dev/null | wc -l) unpushed"; \
+	  else \
+	    a="$$(git -C $$p rev-list --count HEAD 2>/dev/null || echo 0) unpushed, no upstream"; \
+	  fi; \
+	  printf "  %-10s %-24s %3s dirty  %s\n" "$$n" "$$b" "$$d" "$$a"; \
 	done
 
 dirty:
