@@ -161,3 +161,30 @@ push:
 seed-image:
 	@test -n "$(SECRETS)" || { echo "SECRETS= is required, e.g. make seed-image SECRETS=anthropic.api_key"; exit 1; }
 	@tools/seed-image.sh $(OUT)/image.img $(subst $(comma), ,$(SECRETS))
+
+# ---------------------------------------------------------------- running --
+#
+# cogiti on this workstation, wired to the adapters this repository provides.
+# `config/cogiti.dev.conf` is the whole configuration; these targets only say
+# which one to load.
+
+COGITI  ?= ../cogiti
+AVATARI ?= ../avatari
+CONF    ?= config/cogiti.dev.conf
+
+.PHONY: talk face renderer
+
+## talk: cogiti in a terminal, no face
+talk:
+	@$(COGITI)/bin/cogiti --conf=$(CONF) 2>&1
+
+## renderer: start avatari's desktop build in the background
+renderer:
+	@$(MAKE) -C $(AVATARI) PLATFORM=desktop >/dev/null
+	@pgrep -f "build/desktop/avatari --socket /tmp/avatari.sock" >/dev/null \
+		|| ( cd $(AVATARI) && ./build/desktop/avatari --socket /tmp/avatari.sock \
+		     >/tmp/avatari.log 2>&1 & )
+	@sleep 2 && echo "avatari on /tmp/avatari.sock  (log: /tmp/avatari.log)"
+
+## face: the renderer, then cogiti talking to it
+face: renderer talk
