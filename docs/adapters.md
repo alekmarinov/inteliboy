@@ -30,7 +30,20 @@ things the port requires. What it still owes InteliBoy specifically: a `chart`
 kind and a `list` kind, both designed and unbuilt, and a fake renderer so
 cogiti is testable without a GPU.
 
-**audi → speech.** Does not exist. Longest lead time of anything planned, and
+**audi → speech.** Does not exist. **It will own the speaker**, which avatari
+holds today: `/etc/avatari.conf` sets `audio.enabled = true` and the renderer
+plays the wav cogiti hands it. That moves, and the reason is measured rather
+than argued — the microphone on this hardware hears the device's own voice at
+23× the silent noise floor, so barge-in needs echo cancellation, which needs
+playback and capture in one clock domain.
+
+The change when it comes is small: cogiti stops putting `audio` in the `speak`
+message and keeps sending `audio_start_ns`, and the mouth carries on because it
+was never driven by the audio. avatari's own protocol anticipates it — "a brain
+that plays its own audio should still send `audio_start_ns`, so the mouth lines
+up with sound the renderer never sees."
+
+Longest lead time of anything planned, and
 entirely independent of cogiti — it can be developed against a microphone. The
 prior art is already in avatari's `tools/say.c`, `say-piper.sh` and
 `speak.sh`, which do the espeak/Piper/Azure tiering and the viseme mapping;
