@@ -85,7 +85,10 @@ present    = "none"
 timeout_ms = 1000
 
   [set_volume.args]
-  level = { slot = "level", required = true }
+  # `ask` is the wording for a missing slot. Without it, "set the volume" with
+  # no number escalates to the model — which works, and costs seconds and money
+  # to learn a number the resolver could have been told.
+  level = { slot = "level", required = true, ask = "What level? Nought to a hundred." }
 
 # ------------------------------------------------------------ dangerous --
 #
