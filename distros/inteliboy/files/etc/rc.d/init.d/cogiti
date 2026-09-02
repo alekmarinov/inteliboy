@@ -1,0 +1,66 @@
+#!/bin/sh
+########################################################################
+# Begin cogiti
+#
+# Description : Starts the InteliBoy brain
+# Author      : InteliBoy
+#
+# The renderer is started separately and may not be up. cogiti treats a
+# missing presentation socket as a normal state and reconnects, so there is
+# no ordering requirement between them beyond both being after the network.
+#
+########################################################################
+
+### BEGIN INIT INFO
+# Provides:          cogiti
+# Required-Start:    $network avatari
+# Should-Start:
+# Required-Stop:
+# Default-Start:     3 4 5
+# Default-Stop:      0 1 2 6
+# Short-Description: Starts the InteliBoy brain.
+# Description:       Resolve, act, escalate. Listens through audi and answers
+#                    through avatari.
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+COGITI=/usr/bin/cogiti
+PIDFILE=/run/cogiti.pid
+LOG=/var/log/cogiti.log
+
+case "$1" in
+   start)
+      log_info_msg "Starting the InteliBoy brain..."
+      install -d -m 0700 /var/lib/cogiti
+      # stdin is /dev/null on purpose: cogiti's repl reads it, and a tty here
+      # would have it competing with a login shell for the console.
+      start_stop_daemon --start --quiet --background --make-pidfile \
+         --pidfile "$PIDFILE" --startas /bin/sh -- \
+         -c "exec $COGITI >> $LOG 2>&1 < /dev/null"
+      evaluate_retval
+      ;;
+
+   stop)
+      log_info_msg "Stopping the InteliBoy brain..."
+      start_stop_daemon --stop --quiet --retry 10 --pidfile "$PIDFILE"
+      evaluate_retval
+      ;;
+
+   restart)
+      $0 stop
+      sleep 1
+      $0 start
+      ;;
+
+   status)
+      statusproc $COGITI
+      ;;
+
+   *)
+      echo "Usage: $0 {start|stop|restart|status}"
+      exit 1
+      ;;
+esac
+
+exit 0

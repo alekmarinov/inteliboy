@@ -1,0 +1,18 @@
+id     = "brain/date"
+kind   = "group"
+region = "stage"
+
+  [[children]]
+  kind  = "text"
+  style = "headline"
+  text  = "{weekday}"
+
+  [[children]]
+  kind  = "text"
+  style = "title"
+  text  = "{date_spoken}"
+
+  [[children]]
+  kind  = "text"
+  style = "caption"
+  text  = "{date_iso}"

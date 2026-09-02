@@ -24,10 +24,15 @@ DISTRO_DIR=${1:-$BASE_DIR/distros/inteliboy}
 SOURCES="$DISTRO_DIR/sources"
 [ -d "$SOURCES" ] || { echo "No sources directory at $SOURCES"; exit 1; }
 
-# Components whose source is built into the image. reflexi and cogiti are not
-# here yet: reflexi has no dist target and cogiti has no code. When they gain
-# one, they are added here and nowhere else.
-COMPONENTS="avatari"
+# Components whose source is built into the image. Each must answer `make
+# version`, `make dist` and `make dist-assets`; a component with nothing to
+# ship beyond its source answers the last one with true.
+#
+# audi's assets are the large ones and they are not its source: the speech
+# models, and the Python wheels its dependencies come as. They are fetched for
+# the *appliance's* Python rather than this workstation's — see
+# docs/python-on-the-appliance.md, which is the trap that costs a day.
+COMPONENTS="avatari reflexi cogiti audi"
 
 for c in $COMPONENTS; do
     repo="$BASE_DIR/../$c"
@@ -75,6 +80,38 @@ done
 # truncated copy, not to make a supply chain claim about our own code - these
 # tarballs have no upstream url, which is why they are here and not in one of
 # the wget lists.
+# This repository's own adapters, which are not a component with a version of
+# its own. They are the deployment's answer to "which model, which voice" — the
+# one thing cogiti refuses to have an opinion about — so they ship from here.
+#
+# The wheels are fetched for the appliance's Python, never this one's. Only
+# `anthropic` and its dependencies: audi brings its own, and duplicating them
+# would put two copies of numpy in the image.
+ADAPTERS_VER=$(git -C "$BASE_DIR" describe --tags --always --dirty 2>/dev/null || echo 0.0.0)
+echo "inteliboy-adapters $ADAPTERS_VER"
+rm -rf "$BASE_DIR/build/adapters"
+mkdir -p "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/wheels"
+cp -r "$BASE_DIR/adapters" \
+      "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/adapters"
+rm -rf "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/adapters/anthropic/.venv"
+pip download -q --only-binary=:all: --python-version 3.13 --implementation cp \
+    --abi cp313 --abi none --platform any --platform manylinux2014_x86_64 \
+    --platform manylinux_2_17_x86_64 anthropic \
+    -d "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/wheels"
+tar cJf "$SOURCES/inteliboy-adapters-$ADAPTERS_VER.tar.xz" \
+    -C "$BASE_DIR/build/adapters" --owner=0 --group=0 --numeric-owner \
+    --sort=name --mtime=@0 "inteliboy-adapters-$ADAPTERS_VER"
+rm -rf "$BASE_DIR/build/adapters"
+echo "  staged inteliboy-adapters-$ADAPTERS_VER.tar.xz"
+
+# Anything from a previous version of ourselves.
+for old in "$SOURCES"/inteliboy-adapters-*.tar.xz; do
+    case "$old" in
+        *"inteliboy-adapters-$ADAPTERS_VER.tar.xz") ;;
+        *[!*]*) [ -e "$old" ] && rm -f "$old" && echo "  removing stale $(basename "$old")" ;;
+    esac
+done
+
 ( cd "$SOURCES" && md5sum *.tar.xz > local.md5sums )
 echo
 echo "$SOURCES/local.md5sums:"
