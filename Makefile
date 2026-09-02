@@ -259,6 +259,11 @@ renderer-stop:
 	else echo "no renderer of ours is running"; fi
 	@rm -f $(AVATARI_PID) $(AVATARI_SOCK)
 
+## mic-check: is the microphone delivering speech? Speak while it runs.
+.PHONY: mic-check
+mic-check:
+	@tools/mic-check.sh $(SECS)
+
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
 audio-check:
