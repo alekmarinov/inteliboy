@@ -5,10 +5,6 @@
 # Description : Starts the InteliBoy brain
 # Author      : InteliBoy
 #
-# The renderer is started separately and may not be up. cogiti treats a
-# missing presentation socket as a normal state and reconnects, so there is
-# no ordering requirement between them beyond both being after the network.
-#
 ########################################################################
 
 ### BEGIN INIT INFO
@@ -32,29 +28,69 @@ LOG=/var/log/cogiti.log
 case "$1" in
    start)
       log_info_msg "Starting the InteliBoy brain..."
+      if [ ! -x "$COGITI" ]; then
+         log_failure_msg2
+         exit 1
+      fi
       install -d -m 0700 /var/lib/cogiti
-      # stdin is /dev/null on purpose: cogiti's repl reads it, and a tty here
-      # would have it competing with a login shell for the console.
-      start_stop_daemon --start --quiet --background --make-pidfile \
-         --pidfile "$PIDFILE" --startas /bin/sh -- \
-         -c "exec $COGITI >> $LOG 2>&1 < /dev/null"
+
+      # Supervised in the background, in the same shape as the renderer beside
+      # it. LFS's bootscripts have no start_stop_daemon — that is Debian's, and
+      # using it here failed with 'command not found' at boot, printed FAIL,
+      # and exited 0, so nothing downstream noticed the brain had not started.
+      #
+      # The restart loop is not belt and braces. The brain holds the speech
+      # adapter as a child, and a device that has gone deaf and does not
+      # mention it is the worst way for this to fail.
+      (
+         echo $$ > "$PIDFILE"
+         fails=0
+         while true; do
+            started=$(cut -d. -f1 /proc/uptime)
+            "$COGITI" >>"$LOG" 2>&1
+            ran=$(( $(cut -d. -f1 /proc/uptime) - started ))
+
+            # One that dies immediately, repeatedly, is a missing model or a
+            # bad path and will not start on the next attempt either. Stop, and
+            # leave the reason in the log rather than looping over it forever.
+            if [ "$ran" -lt 10 ]; then
+               fails=$(( fails + 1 ))
+            else
+               fails=0
+            fi
+            if [ "$fails" -ge 3 ]; then
+               echo "cogiti failed to stay up 3 times; giving up" >>"$LOG"
+               exit 1
+            fi
+            sleep 2
+         done
+      ) </dev/null >/dev/null 2>&1 &
       evaluate_retval
       ;;
 
    stop)
       log_info_msg "Stopping the InteliBoy brain..."
-      start_stop_daemon --stop --quiet --retry 10 --pidfile "$PIDFILE"
+      if [ -f "$PIDFILE" ]; then
+         kill "$(cat "$PIDFILE")" 2>/dev/null
+         pkill -f "$COGITI" 2>/dev/null
+         rm -f "$PIDFILE"
+      fi
       evaluate_retval
       ;;
 
    restart)
       $0 stop
-      sleep 1
+      sleep 2
       $0 start
       ;;
 
    status)
-      statusproc $COGITI
+      if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+         echo "cogiti is running"
+      else
+         echo "cogiti is not running"
+         exit 3
+      fi
       ;;
 
    *)
