@@ -5,6 +5,25 @@
 # Description : Starts the InteliBoy brain
 # Author      : InteliBoy
 #
+# Three rules here were each learned from a device that had gone wrong,
+# and none of them are style:
+#
+#   The supervisor gets its own process group, via setsid. The brain
+#   holds audi as a child and audi holds arecord, so killing the pid in
+#   the pidfile stops the supervisor and leaves a recorder on the mic.
+#   A process group is the only handle that covers the whole stack.
+#
+#   stop is unconditional. It used to be wrapped in `if [ -f PIDFILE ]`,
+#   so once a stop had removed the pidfile, every later stop did nothing
+#   at all and still reported OK. Three restarts left three stacks, all
+#   listening: one phrase became three turns, three transcriptions and
+#   three answers, and the trace showed 'volume up' six times for two.
+#
+#   Nothing here uses `pkill -f`. The pattern for a process is also in
+#   the argv of the shell searching for it, so `pkill -f` kills the
+#   caller. That has cost this project three shells and one reaping
+#   script that reaped itself.
+#
 ########################################################################
 
 ### BEGIN INIT INFO
@@ -22,11 +41,33 @@
 . /lib/lsb/init-functions
 
 COGITI=/usr/bin/cogiti
+SELF=/etc/rc.d/init.d/cogiti
 PIDFILE=/run/cogiti.pid
 LOG=/var/log/cogiti.log
 
+# Every pid in the stack, whoever started it: the supervisor, the brain, the
+# speech adapter it spawns, and the recorder under that. Found by pattern
+# because a stack orphaned by an earlier bug is in no pidfile — and filtered
+# through `grep -vx $$` because this script's own argv contains its own name.
+stack_pids() {
+   { pgrep -f "$SELF __supervise"
+     pgrep -f "$COGITI"
+     pgrep -f "/usr/bin/audi"
+     pgrep -x arecord
+   } 2>/dev/null | grep -vx "$$" | sort -un
+}
+
+running() {
+   [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+}
+
 case "$1" in
    start)
+      if running; then
+         log_info_msg "The InteliBoy brain is already running..."
+         log_success_msg2
+         exit 0
+      fi
       log_info_msg "Starting the InteliBoy brain..."
       if [ ! -x "$COGITI" ]; then
          log_failure_msg2
@@ -34,47 +75,62 @@ case "$1" in
       fi
       install -d -m 0700 /var/lib/cogiti
 
-      # Supervised in the background, in the same shape as the renderer beside
-      # it. LFS's bootscripts have no start_stop_daemon — that is Debian's, and
-      # using it here failed with 'command not found' at boot, printed FAIL,
-      # and exited 0, so nothing downstream noticed the brain had not started.
-      #
-      # The restart loop is not belt and braces. The brain holds the speech
-      # adapter as a child, and a device that has gone deaf and does not
-      # mention it is the worst way for this to fail.
-      (
-         echo $$ > "$PIDFILE"
-         fails=0
-         while true; do
-            started=$(cut -d. -f1 /proc/uptime)
-            "$COGITI" >>"$LOG" 2>&1
-            ran=$(( $(cut -d. -f1 /proc/uptime) - started ))
-
-            # One that dies immediately, repeatedly, is a missing model or a
-            # bad path and will not start on the next attempt either. Stop, and
-            # leave the reason in the log rather than looping over it forever.
-            if [ "$ran" -lt 10 ]; then
-               fails=$(( fails + 1 ))
-            else
-               fails=0
-            fi
-            if [ "$fails" -ge 3 ]; then
-               echo "cogiti failed to stay up 3 times; giving up" >>"$LOG"
-               exit 1
-            fi
-            sleep 2
-         done
-      ) </dev/null >/dev/null 2>&1 &
+      # setsid, so the supervisor leads a process group of its own and stop
+      # has one handle for the whole stack. Without it the group is init's,
+      # and there is nothing to signal but individual pids.
+      setsid "$SELF" __supervise </dev/null >/dev/null 2>&1 &
       evaluate_retval
+      ;;
+
+   __supervise)
+      # Not for people to call. The restart loop is not belt and braces: the
+      # brain holds the speech adapter as a child, and a device that has gone
+      # deaf without mentioning it is the worst way for this to fail.
+      echo $$ > "$PIDFILE"
+      fails=0
+      while true; do
+         started=$(cut -d. -f1 /proc/uptime)
+         "$COGITI" >>"$LOG" 2>&1
+         ran=$(( $(cut -d. -f1 /proc/uptime) - started ))
+
+         # One that dies immediately, repeatedly, is a missing model or a bad
+         # path and will not start on the next attempt either. Stop, and leave
+         # the reason in the log rather than looping over it forever.
+         if [ "$ran" -lt 10 ]; then
+            fails=$(( fails + 1 ))
+         else
+            fails=0
+         fi
+         if [ "$fails" -ge 3 ]; then
+            echo "cogiti failed to stay up 3 times; giving up" >>"$LOG"
+            rm -f "$PIDFILE"
+            exit 1
+         fi
+         sleep 2
+      done
       ;;
 
    stop)
       log_info_msg "Stopping the InteliBoy brain..."
+
+      # The process group first: supervisor, brain, adapter and recorder in
+      # one signal, so nothing is left holding the microphone.
       if [ -f "$PIDFILE" ]; then
-         kill "$(cat "$PIDFILE")" 2>/dev/null
-         pkill -f "$COGITI" 2>/dev/null
-         rm -f "$PIDFILE"
+         pgid=$(cat "$PIDFILE")
+         kill -TERM -- -"$pgid" 2>/dev/null
       fi
+
+      # Then whatever is still there, pidfile or not. Orphans from a stack
+      # that was started before this script was fixed have no pidfile at all.
+      i=0
+      while [ -n "$(stack_pids)" ] && [ "$i" -lt 10 ]; do
+         for pid in $(stack_pids); do kill -TERM "$pid" 2>/dev/null; done
+         sleep 1
+         i=$(( i + 1 ))
+      done
+      for pid in $(stack_pids); do kill -KILL "$pid" 2>/dev/null; done
+
+      rm -f "$PIDFILE"
       evaluate_retval
       ;;
 
@@ -85,11 +141,16 @@ case "$1" in
       ;;
 
    status)
-      if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-         echo "cogiti is running"
+      if running; then
+         echo "cogiti is running (pgid $(cat "$PIDFILE"))"
       else
          echo "cogiti is not running"
          exit 3
+      fi
+      n=$(pgrep -f "$COGITI" 2>/dev/null | grep -vx "$$" | wc -l)
+      if [ "$n" -gt 1 ]; then
+         echo "WARNING: $n brains are running; they are all listening"
+         exit 1
       fi
       ;;
 

@@ -18,11 +18,13 @@ speak    = "It's {time_spoken}."
 # A named template in config/presentation/. A bare string would also work and
 # is right for a one-line display; this one is a card.
 present  = "clock_card"
+linger   = 12
 
 [get_date]
 provider = "clock.today"
 speak    = "It's {date_spoken}."
 present  = "date_card"
+linger   = 12
 
 # --------------------------------------------------------- conversation --
 #
@@ -150,21 +152,25 @@ present = "none"
 provider = "device.ip"
 speak    = "My address is {ip_spoken}."
 present  = "ip_card"
+linger   = 45
 
 [get_uptime]
 provider = "device.uptime"
 speak    = "I have been running for {uptime_spoken}."
 present  = "{uptime_spoken}"
+linger   = 15
 
 [get_hostname]
 provider = "device.hostname"
 speak    = "I am {hostname}."
 present  = "{pretty_name}"
+linger   = 15
 
 [get_disk]
 provider = "device.disk"
 speak    = "There is {free_spoken} free."
 present  = "{free_gb} GB free"
+linger   = 15
 
 [hearing_check]
 # The answer is yes, and it knows: this command only runs because something
