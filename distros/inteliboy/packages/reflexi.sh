@@ -25,17 +25,26 @@ echo "Required disk space: 8 MB"
 VER=$(ls /sources/reflexi-[0-9]*.tar.xz | sed 's|.*/reflexi-||; s|\.tar\.xz$||')
 echo "reflexi $VER"
 
-pushd /sources && grep " reflexi-[0-9]" local.md5sums | md5sum -c - && popd
+pushd /sources && grep -E " reflexi(-wheels)?-[0-9]" local.md5sums | md5sum -c - && popd
 
-rm -rf /tmp/reflexi
-tar -xf /sources/reflexi-[0-9]*.tar.xz -C /tmp/ \
-    && mv /tmp/reflexi-[0-9]* /tmp/reflexi \
-    && pushd /tmp/reflexi \
-    && make DEBUG=0 \
-    && make DEBUG=0 install \
+rm -rf /tmp/reflexi /tmp/reflexi-wheels /tmp/reflexi-build-deps
+tar -xf /sources/reflexi-[0-9]*.tar.xz -C /tmp/ && mv /tmp/reflexi-[0-9]* /tmp/reflexi
+tar -xf /sources/reflexi-wheels-*.tar.xz -C /tmp/ && mv /tmp/reflexi-wheels-* /tmp/reflexi-wheels
+
+# PyYAML, for the length of this build and no longer. The blob compiler reads
+# intents/*.yaml; nothing at runtime does, because what ships is the compiled
+# blob. Installing it permanently would put a library in the image that
+# nothing on the image imports.
+python3 -m pip install --no-deps --no-index --no-warn-script-location \
+    --target /tmp/reflexi-build-deps /tmp/reflexi-wheels/wheels/*.whl
+
+pushd /tmp/reflexi \
+    && PYTHONPATH=/tmp/reflexi-build-deps make DEBUG=0 \
+    && PYTHONPATH=/tmp/reflexi-build-deps make DEBUG=0 install \
     && popd \
-    && rm -rf /tmp/reflexi \
     || exit 1
+
+rm -rf /tmp/reflexi /tmp/reflexi-wheels /tmp/reflexi-build-deps
 
 # The library cogiti actually opens, the blob it reads, and the thresholds a
 # distro may override. Missing any one of them is a device that escalates every
