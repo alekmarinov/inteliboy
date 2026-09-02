@@ -25,7 +25,10 @@ versions.lock.bak
 # An image carrying a credential. Never a release artifact, never shared, and
 # never confusable with the image it was copied from — which is what the name
 # is for.
-*-provisioned.img
+# The image itself, because it carries credentials now — seed-image.sh writes
+# them in place rather than into a second copy. /build/ is ignored above, so
+# this is belt and braces for an image left anywhere else.
+*.img
 
 # An adapter brings its own dependencies; cogiti has none. The virtualenv is
 # the adapter's environment, not a thing to commit.

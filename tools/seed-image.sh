@@ -1,16 +1,14 @@
 #!/bin/bash
-# Write secrets into a copy of an image, for a device that cannot be reached
-# after it boots.
+# Write secrets into the image, in place.
 #
 #   tools/seed-image.sh <image.img> <secret-name> [more names...]
 #
-# It never modifies the image you built. It writes `<image>-provisioned.img`,
-# and that name is the safety mechanism: an image carrying a credential must
-# not be confusable with the one you hand to somebody, copy to a USB stick, or
-# keep as a release artifact. `build/*-provisioned.img` is gitignored.
+# One image, and it carries its credentials. That is a decision, not an
+# oversight: a second `-provisioned` copy meant seven gigabytes of duplicate
+# and one more thing to pick the wrong one of.
 #
 # ------------------------------------------------------------------------
-# Prefer provisioning after boot. This exists for when you cannot.
+# So: THE BUILT IMAGE IS A SECRET. Treat build/ as you would a private key.
 #
 # A credential inside an image is a credential in every copy of that image, on
 # every device flashed from it, in every backup of the build directory, and in
@@ -19,10 +17,13 @@
 # has already fixed twice: ssh host keys shared by every image, and a root
 # password hash riding inside four packages.
 #
+# It is also our key rather than the owner's, which does not survive contact
+# with a second user — see changes/2026-09-01-user-owned-credentials/brief.md,
+# which is the plan for undoing all of this.
+#
 # `tools/push.sh` and an ssh key in the distro overlay mean a booted device can
-# be provisioned in a second, with the credential never touching a build
-# artifact. Reach for this only when the device has no network on first boot,
-# or when flashing many at once makes logging into each one impractical.
+# be given its credentials in a second, with them never touching a build
+# artifact. That remains the better way whenever the device can be reached.
 #
 # One image seeded here should go to one device. If it goes to several, they
 # share a credential and you have chosen the thing the paragraph above
@@ -36,7 +37,7 @@ shift
 
 STORE=${COGITI_SECRETS:-$HOME/.local/state/cogiti/secrets}
 STATE_DIR=${COGITI_STATE_DIR:-/var/lib/cogiti}
-OUT="${IMG%.img}-provisioned.img"
+OUT="$IMG"
 
 [ -f "$IMG" ] || { echo "no such image: $IMG"; exit 1; }
 for name in "$@"; do
@@ -44,9 +45,6 @@ for name in "$@"; do
     mode=$(stat -c %a "$STORE/$name")
     [ "$mode" = 600 ] || { echo "$STORE/$name is mode $mode, expected 600"; exit 1; }
 done
-
-echo "copying $(basename "$IMG") -> $(basename "$OUT")"
-cp --reflink=auto "$IMG" "$OUT"
 
 LOOP=$(sudo losetup -f)
 MNT=$(mktemp -d)
@@ -70,5 +68,6 @@ sync
 
 echo
 echo "$(basename "$OUT") carries $# secret(s)."
-echo "Flash it to one device. Every device flashed from it shares them, and"
-echo "revoking means reflashing rather than deleting a file."
+echo "It is now a secret itself. Flash it to one device; every device flashed"
+echo "from it shares them, and revoking means reflashing rather than deleting"
+echo "a file."

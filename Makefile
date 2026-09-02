@@ -152,12 +152,12 @@ push:
 	@test -n "$(HOST)" || { echo "HOST= is required, e.g. make push HOST=root@192.168.1.174"; exit 1; }
 	@tools/push.sh $(HOST) $(LFS)/packages/$(COMPONENT).tar.gz $(COMPONENT)
 
-# Write secrets into a *copy* of the image, for a device that cannot be reached
-# after it boots. Prefer provisioning a booted device: a credential inside an
-# image is in every copy of it and revoking means reflashing rather than
-# deleting a file. The copy is named -provisioned.img and is gitignored, so it
-# cannot be mistaken for the image you would hand to somebody.
-#   make seed-image SECRETS=anthropic.api_key
+# Write secrets into the image, in place. One image, and it carries its
+# credentials — which makes the built image a secret: treat build/ as you would
+# a private key. Prefer giving a booted device its credentials with `make push`
+# whenever the device can be reached; a credential inside an image is in every
+# copy of it, and revoking means reflashing rather than deleting a file.
+#   make seed-image SECRETS=anthropic.api_key,azure.speech_key,azure.speech_region
 seed-image:
 	@test -n "$(SECRETS)" || { echo "SECRETS= is required, e.g. make seed-image SECRETS=anthropic.api_key"; exit 1; }
 	@tools/seed-image.sh $(OUT)/image.img $(subst $(comma), ,$(SECRETS))
