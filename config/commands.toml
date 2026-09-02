@@ -1,0 +1,113 @@
+# InteliBoy's command table — a resolved intent, and what it does.
+#
+# One section per reflexi intent id (`../reflexi/intents/*.yaml`). An intent
+# with no section here escalates to the model, which is not a failure: it is a
+# device that has not been taught that yet.
+#
+# Adding a command is editing this file. See ../cogiti/docs/command-table.md.
+#
+# `speak` is a template, never model output. A local command has a known shape
+# and the device saying it the same way every time is the point; prose is what
+# escalation is for.
+
+# ------------------------------------------------------------------ time --
+
+[get_time]
+provider = "clock.now"
+speak    = "It's {time_spoken}."
+present  = "{time_24h}"
+
+[get_date]
+provider = "clock.today"
+speak    = "It's {date_spoken}."
+present  = "{date_iso}"
+
+# --------------------------------------------------------- conversation --
+#
+# No provider work to do, and giving them one would be pretending. They are
+# here so they do not cost an API call and two seconds.
+
+[greeting]
+provider = "conversation.acknowledge"
+speak    = "Hello."
+present  = "none"
+
+[thanks]
+provider = "conversation.acknowledge"
+speak    = "Any time."
+present  = "none"
+
+# ---------------------------------------------------------------- audio --
+#
+# The device's mixer, through the shell provider. `command` is a list, so
+# nothing reaches a shell, and a slot substituted into an entry stays one
+# argument — `set_volume` with "70; rm -rf /" passes amixer a single argument
+# containing a semicolon, which it rejects.
+#
+# amixer on the appliance; this workstation has no card, so it answers
+# "I can't do that on this device" rather than pretending.
+
+[volume_up]
+provider   = "shell.run"
+command    = ["amixer", "-q", "sset", "Master", "10%+"]
+speak      = "Turned it up."
+present    = "none"
+timeout_ms = 1000
+source     = "alsa"
+
+[volume_down]
+provider   = "shell.run"
+command    = ["amixer", "-q", "sset", "Master", "10%-"]
+speak      = "Turned it down."
+present    = "none"
+timeout_ms = 1000
+source     = "alsa"
+
+[mute]
+provider   = "shell.run"
+command    = ["amixer", "-q", "sset", "Master", "mute"]
+speak      = "Muted."
+present    = "none"
+timeout_ms = 1000
+
+[unmute]
+provider   = "shell.run"
+command    = ["amixer", "-q", "sset", "Master", "unmute"]
+speak      = "Unmuted."
+present    = "none"
+timeout_ms = 1000
+
+[set_volume]
+provider   = "shell.run"
+command    = ["amixer", "-q", "sset", "Master", "{level}%"]
+speak      = "Volume {level} percent."
+present    = "none"
+timeout_ms = 1000
+
+  [set_volume.args]
+  level = { slot = "level", required = true }
+
+# ------------------------------------------------------------ dangerous --
+#
+# reflexi returns `confirm` for these and cogiti will not auto-answer it, will
+# not let it expire into yes, and will not let an agent answer it. The field
+# below is only the wording.
+#
+# The command is deliberately NOT `poweroff` on a development workstation.
+# Point it at the real thing in the appliance's own table.
+
+[power_off]
+provider   = "shell.run"
+command    = ["true"]
+confirm    = "Shut down the device?"
+speak      = "Goodbye."
+present    = "none"
+timeout_ms = 2000
+
+[reboot]
+provider   = "shell.run"
+command    = ["true"]
+confirm    = "Restart the device?"
+speak      = "Restarting."
+present    = "none"
+timeout_ms = 2000
