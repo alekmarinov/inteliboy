@@ -280,6 +280,11 @@ listen: renderer
 	@$(COGITI)/bin/cogiti --conf=$(CONF) \
 	  --speech-in-adapter="$(abspath $(AUDI))/bin/audi$(if $(WAV), --wav $(WAV),)"
 
+## verify-device: is a booted appliance actually working? HOST=... required
+.PHONY: verify-device
+verify-device:
+	@tools/verify-device.sh $(HOST) $(SSHARGS)
+
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
 audio-check:
