@@ -51,11 +51,24 @@ for c in $COMPONENTS; do
     # Every tarball this component produced for this version. The glob is
     # anchored on the version rather than on the name, so an older tarball
     # left in the component's tree from a previous build is not picked up.
+    # Copied only when the content differs. The dist targets build
+    # reproducibly — --sort=name --mtime=@0 --numeric-owner — so an unchanged
+    # component produces a byte-identical tarball, and copying it anyway would
+    # move its mtime and force a rebuild of a package that has not changed.
+    #
+    # That is not a micro-optimisation. The distro build decides what to
+    # rebuild by comparing each recipe against its staged sources, so a
+    # gratuitous copy of the 167 MB voice pack is a full reinstall of it.
     found=0
     for t in "$repo"/*-"$ver".tar.xz; do
         [ -e "$t" ] || continue
-        cp -f "$t" "$SOURCES/"
-        echo "  staged $(basename "$t")"
+        name=$(basename "$t")
+        if [ -e "$SOURCES/$name" ] && cmp -s "$t" "$SOURCES/$name"; then
+            echo "  unchanged $name"
+        else
+            cp -f "$t" "$SOURCES/"
+            echo "  staged $name"
+        fi
         found=$((found + 1))
     done
     [ "$found" -gt 0 ] || { echo "$c: 'make dist' produced no tarball for $ver"; exit 1; }
