@@ -24,31 +24,47 @@ kill -INT $P 2>/dev/null || true
 wait $P 2>/dev/null || true
 
 python3 - "$OUT" <<'PY'
-import audioop, sys, wave
+import sys, wave
+
+# audioop, not array/math, was the obvious way to write this — and it was
+# removed in Python 3.13, which is what the appliance runs. These scripts
+# worked on a 3.12 workstation and died on the device with ModuleNotFoundError,
+# which is a poor way for a diagnostic tool to fail.
+def _levels(data):
+    import array, math
+    a = array.array("h"); a.frombytes(data)
+    if not a:
+        return 0, 0, a
+    peak = max(abs(x) for x in a)
+    rms = int(math.sqrt(sum(x * x for x in a) / len(a)))
+    return peak, rms, a
+
+
+def _rms(chunk):
+    import math
+    return int(math.sqrt(sum(x * x for x in chunk) / len(chunk))) if chunk else 0
+
 w = wave.open(sys.argv[1]); n = w.getnframes()
 rate = w.getframerate()
 if not n:
     print("\n  nothing captured at all — the source is not delivering frames.")
     raise SystemExit(1)
 
-data = w.readframes(n)
-peak, rms = audioop.max(data, 2), audioop.rms(data, 2)
+peak, rms, a = _levels(w.readframes(n))
 print("\n  %.1fs at %d Hz   peak %5d   rms %4d" % (n / rate, rate, peak, rms))
 
 # A level meter over the whole recording, so a mic that only works for part of
 # it is visible rather than averaged away.
-step = max(1, n // 40)
-bar = ""
-for i in range(0, n - step, step):
-    chunk = data[i * 2:(i + step) * 2]
-    lvl = audioop.rms(chunk, 2)
-    bar += " .:-=+*#@"[min(8, int((lvl / 3000.0) * 8))]
+step = max(1, len(a) // 40)
+bar = "".join(" .:-=+*#@"[min(8, int((_rms(a[i:i+step]) / 3000.0) * 8))]
+              for i in range(0, len(a) - step, step))
 print("  [%s]" % bar)
 
 if peak < 500:
     print("\n  Captured, but silent. The stream is alive, so this is not a")
-    print("  missing device — check that the mic is unmuted, that Windows lets")
-    print("  this app use it, and that RDPSource is the right source.")
+    print("  missing device — check that the mic is unmuted, that its boost is")
+    print("  not at zero (the ALC233 ships that way), and that whatever is")
+    print("  recording is allowed to.")
     raise SystemExit(1)
 if rms < 300:
     print("\n  Very quiet. Speech recognition will struggle; raise the input")

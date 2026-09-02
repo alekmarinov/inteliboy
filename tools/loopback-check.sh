@@ -37,18 +37,24 @@ sleep 0.6
 kill -INT $R 2>/dev/null || true; wait $R 2>/dev/null || true
 
 python3 - "$D/quiet.wav" "$D/loop.wav" <<'PY'
-import audioop, sys, wave
+import array, math, sys, wave
+
+# array/math rather than audioop: audioop was removed in Python 3.13, which is
+# what the appliance runs, and a diagnostic tool that dies with
+# ModuleNotFoundError on the machine being diagnosed is worse than none.
+def _rms(chunk):
+    return int(math.sqrt(sum(x * x for x in chunk) / len(chunk))) if chunk else 0
+
 
 def level(path):
     w = wave.open(path); n = w.getnframes()
     if not n:
         return 0, 0, 0.0, ""
-    d = w.readframes(n)
-    step = max(1, n // 32)
-    bar = "".join(" .:-=+*#@"[min(8, int(audioop.rms(d[i*2:(i+step)*2], 2)
-                                         / 3000.0 * 8))]
-                  for i in range(0, n - step, step))
-    return audioop.max(d, 2), audioop.rms(d, 2), n / w.getframerate(), bar
+    a = array.array("h"); a.frombytes(w.readframes(n))
+    step = max(1, len(a) // 32)
+    bar = "".join(" .:-=+*#@"[min(8, int(_rms(a[i:i+step]) / 3000.0 * 8))]
+                  for i in range(0, len(a) - step, step))
+    return max(abs(x) for x in a), _rms(a), n / w.getframerate(), bar
 
 qp, qr, qs, qb = level(sys.argv[1])
 lp, lr, ls, lb = level(sys.argv[2])
