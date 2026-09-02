@@ -131,7 +131,15 @@ stage:
 distro-packages:
 	sudo $(MAKE) -C $(LFS) distro-packages DISTRO=$(DISTRO)
 
-distro:
+## version: what this image will call itself, and whether it agrees
+version:
+	@tools/release.sh --check
+
+# The check runs here because this is the step that writes /etc/os-release.
+# An image that claims a version nobody released is one you cannot ask a
+# running device about — which is what 'InteliBoy 0.0.0' was on every image
+# ever built, including two that differed by having a working voice.
+distro: version
 	$(MAKE) -C $(LFS) distro DISTRO=$(DISTRO) OUT=$(OUT)
 
 check:
