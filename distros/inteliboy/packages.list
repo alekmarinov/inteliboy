@@ -4,6 +4,11 @@
 # and grub, computed with 'make closure PACKAGES="x-make-avatari 5-make-grub"'
 # and put back into build order, plus two things no dependency graph can see:
 #
+#   python            cogiti and audi are both python. Its closure adds gdbm,
+#                     libffi and sqlite, computed with
+#                     'make closure PACKAGES=8.51-make-python' and diffed
+#                     against core — 21 of its 25 dependencies were already
+#                     here for other reasons
 #   the kernel        every distro names its own now, see distros/core
 #   alsa-utils        alsactl unmutes the mixer at boot; nothing links it
 #   dejavu fonts      avatari opens the face by path from /etc/avatari.conf,
@@ -29,7 +34,10 @@
 8.22-make-mpfr.tar.gz
 8.23-make-mpc.tar.gz
 8.29-make-gcc.tar.gz
+8.38-make-gdbm.tar.gz
 8.40-make-expat.tar.gz
+8.50-make-libffi.tar.gz
+8.51-make-python.tar.gz
 linux-kernel.tar.gz
 9-make-icu.tar.gz
 10-make-libpng.tar.gz
@@ -49,5 +57,6 @@ linux-kernel.tar.gz
 avatari.tar.gz
 avatari-heads.tar.gz
 avatari-voices.tar.gz
+22-make-sqlite.tar.gz
 24-make-dejavu-fonts.tar.gz
 5-make-grub.tar.gz
