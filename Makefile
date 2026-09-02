@@ -227,6 +227,7 @@ renderer:
 	  && echo "avatari already up on $(AVATARI_SOCK)" && exit 0 || true; \
 	rm -f $(AVATARI_SOCK); \
 	( cd $(AVATARI) && exec ./build/desktop/avatari --socket $(AVATARI_SOCK) \
+	    --config $(CURDIR)/config/avatari.dev.conf \
 	    $(if $(filter-out 0,$(AUDIO)),--audio,) >/tmp/avatari.log 2>&1 & \
 	  echo $$! > $(AVATARI_PID) ); \
 	for i in $$(seq 1 60); do \

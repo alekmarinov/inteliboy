@@ -1,0 +1,39 @@
+#!/bin/sh
+# A speech adapter (out half) using Azure Speech, falling back to espeak-ng.
+#
+#     adapters/azure/speak "the text to say"
+#     -> {"visemes":[[0.05,"sil"],...],"audio":"/tmp/avatari-azure.wav"}
+#
+# Azure is an improvement when it is reachable, never a dependency. avatari's
+# CLAUDE.md §1 says nothing in the critical path may require the network, and
+# an appliance that goes mute when the wifi drops is exactly that failure. So
+# this falls through to espeak-ng, which is local, always present, and worse.
+#
+# The two tiers are not interchangeable in one respect worth knowing: Azure
+# reports **its own viseme timings**, while the espeak path derives them from
+# espeak-ng's phoneme boundaries. Both arrive as [seconds, name] against the
+# same table, so cogiti and the renderer cannot tell the difference — which is
+# the point of the contract being timings rather than an engine name.
+#
+# The key comes from the environment, which cogiti fills from its secret store
+# (`speech_secrets` in cogiti.conf). This script never learns where it is kept.
+set -eu
+
+AVATARI=${AVATARI_DIR:-../avatari}
+TEXT=${1:?usage: speak "text"}
+
+if [ -n "${AZURE_SPEECH_KEY:-}" ] && [ -n "${AZURE_SPEECH_REGION:-}" ]; then
+    # cd so say-azure.py finds data/visemes.txt beside it.
+    if out=$(cd "$AVATARI" && python3 tools/say-azure.py --print \
+                ${AZURE_VOICE:+--voice "$AZURE_VOICE"} "$TEXT" 2>/dev/null) \
+       && [ -n "$out" ]; then
+        printf '%s\n' "$out"
+        exit 0
+    fi
+    echo "azure unreachable or refused; falling back to espeak-ng" >&2
+else
+    echo "no AZURE_SPEECH_KEY/REGION in this adapter's environment;" \
+         "falling back to espeak-ng" >&2
+fi
+
+exec "$(dirname "$0")/../espeak/speak" "$TEXT"
