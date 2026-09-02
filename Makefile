@@ -176,7 +176,8 @@ CONF    ?= config/cogiti.dev.conf
 
 ## talk: cogiti in a terminal, no face
 talk:
-	@$(COGITI)/bin/cogiti --conf=$(CONF) 2>&1
+	@$(COGITI)/bin/cogiti --conf=$(CONF) \
+	  $(if $(SOCK),--presentation-adapter=$(SOCK),) 2>&1
 
 ## renderer: start avatari's desktop build in the background
 #
@@ -219,6 +220,18 @@ renderer:
 	done; \
 	echo "avatari did not come up within 15s:"; sed "s/^/    /" /tmp/avatari.log; \
 	exit 1
+
+## tap: watch what cogiti actually says to avatari
+##
+##     make tap &          then: make talk SOCK=/tmp/avatari-tap.sock
+##
+## A socket proxy that forwards both ways and prints every line. Worth
+## reaching for early: the wire showed in one screen that cogiti was sending
+## `idle` in the same millisecond as `speak`, which no amount of reading the
+## two modules had revealed.
+.PHONY: tap
+tap: renderer
+	@python3 tools/tap.py
 
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
