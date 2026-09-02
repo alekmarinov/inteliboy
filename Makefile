@@ -269,6 +269,17 @@ mic-check:
 loopback-check:
 	@tools/loopback-check.sh
 
+## listen: the whole appliance, driven by speech instead of typing.
+##
+##     make listen                  from the microphone
+##     make listen WAV=path.wav     from a recording, which needs no hardware
+AUDI ?= ../audi
+
+.PHONY: listen
+listen: renderer
+	@$(COGITI)/bin/cogiti --conf=$(CONF) \
+	  --speech-in-adapter="$(abspath $(AUDI))/bin/audi$(if $(WAV), --wav $(WAV),)"
+
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
 audio-check:
