@@ -264,6 +264,11 @@ renderer-stop:
 mic-check:
 	@tools/mic-check.sh $(SECS)
 
+## loopback-check: does the speaker reach the mic, and how loudly?
+.PHONY: loopback-check
+loopback-check:
+	@tools/loopback-check.sh
+
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
 audio-check:
