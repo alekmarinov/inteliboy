@@ -43,6 +43,17 @@ python3 -m pip install --no-deps --no-index --no-warn-script-location \
 install -d /usr/libexec/inteliboy
 cp -r /tmp/ia/adapters/* /usr/libexec/inteliboy/
 
+# The Azure SDK ships an optional codec extension for compressed audio, and it
+# links GStreamer — four libraries, and glib behind them, for formats this
+# device never asks for. `make check` resolves every shared object in the tree
+# against the tree's own libraries and refused the image because of it, which
+# is exactly what that check is for.
+#
+# We synthesise to a wav. The extension is loaded lazily and only when a
+# compressed format is requested, so removing it costs nothing and saves
+# carrying GStreamer.
+rm -f "/usr/lib/inteliboy-adapters/azure/cognitiveservices/speech/libMicrosoft.CognitiveServices.Speech.extension.codec.so"
+
 cat > /usr/bin/inteliboy-agent <<'LAUNCHER'
 #!/usr/bin/env python3
 import sys
