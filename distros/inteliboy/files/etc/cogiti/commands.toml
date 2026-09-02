@@ -139,3 +139,37 @@ present  = "none"
 job     = "cancel_timer"
 speak   = "Cancelled {title}."
 present = "none"
+
+# ------------------------------------------------------- knowing itself --
+#
+# Everything here used to go to a language model, which could not know any of
+# it and said so at length. A device is the only authority on its own address,
+# its uptime and whether it heard you.
+
+[get_ip]
+provider = "device.ip"
+speak    = "My address is {ip_spoken}."
+present  = "ip_card"
+
+[get_uptime]
+provider = "device.uptime"
+speak    = "I have been running for {uptime_spoken}."
+present  = "{uptime_spoken}"
+
+[get_hostname]
+provider = "device.hostname"
+speak    = "I am {hostname}."
+present  = "{pretty_name}"
+
+[get_disk]
+provider = "device.disk"
+speak    = "There is {free_spoken} free."
+present  = "{free_gb} GB free"
+
+[hearing_check]
+# The answer is yes, and it knows: this command only runs because something
+# was heard, transcribed and resolved. Anything else would be the device
+# doubting evidence it is standing on.
+provider = "device.hearing"
+speak    = "Yes, I can hear you."
+present  = "none"
