@@ -4,6 +4,10 @@
 # and grub, computed with 'make closure PACKAGES="x-make-avatari 5-make-grub"'
 # and put back into build order, plus two things no dependency graph can see:
 #
+#   ca certificates   nothing in the image had any, so every HTTPS request
+#                     failed CERTIFICATE_VERIFY_FAILED — the model adapter and
+#                     the http tool alike. p11-kit, make-ca and the trust store
+#                     itself, plus libtasn1 which p11-kit needs
 #   python            cogiti and audi are both python. Its closure adds gdbm,
 #                     libffi and sqlite, computed with
 #                     'make closure PACKAGES=8.51-make-python' and diffed
@@ -39,6 +43,10 @@
 8.50-make-libffi.tar.gz
 8.51-make-python.tar.gz
 linux-kernel.tar.gz
+9-make-libtasn1.tar.gz
+4-make-p11-kit.tar.gz
+4-make-make-ca.tar.gz
+x-make-ca-certificates.tar.gz
 9-make-icu.tar.gz
 10-make-libpng.tar.gz
 10-make-freetype.tar.gz

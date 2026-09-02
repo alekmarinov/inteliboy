@@ -55,6 +55,37 @@ exec(compile(open(_p).read(), _p, "exec"),
 LAUNCHER
 chmod 755 /usr/bin/inteliboy-agent
 
+# The voice. Azure reports its own viseme timings, so this needs no phonemiser
+# and no espeak — which is the whole reason it is worth carrying a cloud voice
+# on a device that would otherwise need a new lfs package to speak at all.
+#
+# It writes its wav to /run rather than /tmp: cogiti hands the path to the
+# renderer, both are on the same machine, and /run is a tmpfs so a sentence
+# never touches the disk.
+cat > /usr/bin/inteliboy-say <<'LAUNCHER'
+#!/usr/bin/env python3
+import os, sys
+sys.path.insert(0, "/usr/lib/inteliboy-adapters")
+os.environ.setdefault("AZURE_WAV", "/run/inteliboy-say.wav")
+for var, name in (("AZURE_SPEECH_KEY", "azure.speech_key"),
+                  ("AZURE_SPEECH_REGION", "azure.speech_region")):
+    # Read here rather than inherited: cogiti builds a fresh environment for
+    # every adapter it spawns, and this one is spawned by audi, which is
+    # spawned by cogiti. Threading a secret through two of those is more
+    # moving parts than reading the file it is already allowed to read.
+    if var not in os.environ:
+        try:
+            with open("/var/lib/cogiti/secrets/%s" % name) as f:
+                os.environ[var] = f.read().strip()
+        except OSError:
+            pass
+_p = "/usr/libexec/inteliboy/azure/say-azure.py"
+sys.argv = ["inteliboy-say", "--print"] + sys.argv[1:]
+exec(compile(open(_p).read(), _p, "exec"),
+     {"__name__": "__main__", "__file__": _p})
+LAUNCHER
+chmod 755 /usr/bin/inteliboy-say
+
 rm -rf /tmp/ia
 
 # The import is the check, for the same reason as audi: a wheel for the wrong
@@ -68,4 +99,11 @@ import anthropic
 assert hasattr(anthropic, 'Anthropic'), 'anthropic resolved to the wrong thing: %s' % anthropic.__file__
 print('  anthropic ok:', anthropic.__file__)"
 /usr/bin/inteliboy-agent --capabilities
+python3 -c "
+import sys; sys.path.insert(0,'/usr/lib/inteliboy-adapters')
+import azure.cognitiveservices.speech as s
+assert hasattr(s, 'SpeechConfig'), 'the azure speech sdk did not load'
+print('  azure speech sdk ok')"
+test -x /usr/bin/inteliboy-say
+test -f /usr/share/avatari/data/azure-visemes.txt
 echo "inteliboy-adapters installed"

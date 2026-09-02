@@ -107,10 +107,20 @@ mkdir -p "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/wheels"
 cp -r "$BASE_DIR/adapters" \
       "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/adapters"
 rm -rf "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/adapters/anthropic/.venv"
+# anthropic for the model, azure for the voice. Azure's SDK publishes a `py3`
+# wheel — no Python ABI to match — and reports its own viseme timings, which is
+# why this route needs no phonemiser and no espeak-ng.
 pip download -q --only-binary=:all: --python-version 3.13 --implementation cp \
     --abi cp313 --abi none --platform any --platform manylinux2014_x86_64 \
-    --platform manylinux_2_17_x86_64 anthropic \
+    --platform manylinux_2_17_x86_64 --platform manylinux1_x86_64 \
+    anthropic azure-cognitiveservices-speech \
     -d "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/wheels"
+
+# The voice itself is avatari's script: it owns the Azure viseme mapping and
+# the wav it produces. Copied rather than reimplemented, for the same reason
+# the workstation adapter wraps it instead of talking to Azure directly.
+cp "$BASE_DIR/../avatari/tools/say-azure.py" \
+   "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/adapters/azure/"
 tar cJf "$SOURCES/inteliboy-adapters-$ADAPTERS_VER.tar.xz" \
     -C "$BASE_DIR/build/adapters" --owner=0 --group=0 --numeric-owner \
     --sort=name --mtime=@0 "inteliboy-adapters-$ADAPTERS_VER"
