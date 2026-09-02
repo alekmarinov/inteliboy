@@ -97,6 +97,33 @@ exec(compile(open(_p).read(), _p, "exec"),
 LAUNCHER
 chmod 755 /usr/bin/inteliboy-say
 
+# The ears, for the `final` only. Azure is markedly better than a model small
+# enough to run continuously beside a renderer, and it is asked once per
+# utterance rather than once per 32 ms window — which is the only reason it can
+# be afforded, and why partials stay local.
+#
+# audi falls back to its own model on any failure. That is not politeness:
+# speech in is how a person reaches this device at all, and a mute appliance is
+# annoying where a deaf one is unreachable.
+cat > /usr/bin/inteliboy-hear <<'LAUNCHER'
+#!/usr/bin/env python3
+import os, sys
+sys.path.insert(0, "/usr/lib/inteliboy-adapters")
+for var, name in (("AZURE_SPEECH_KEY", "azure.speech_key"),
+                  ("AZURE_SPEECH_REGION", "azure.speech_region")):
+    if var not in os.environ:
+        try:
+            with open("/var/lib/cogiti/secrets/%s" % name) as f:
+                os.environ[var] = f.read().strip()
+        except OSError:
+            pass
+_p = "/usr/libexec/inteliboy/azure/recognise"
+sys.argv[0] = "inteliboy-hear"
+exec(compile(open(_p).read(), _p, "exec"),
+     {"__name__": "__main__", "__file__": _p})
+LAUNCHER
+chmod 755 /usr/bin/inteliboy-hear
+
 rm -rf /tmp/ia
 
 # The import is the check, for the same reason as audi: a wheel for the wrong
@@ -116,5 +143,7 @@ import azure.cognitiveservices.speech as s
 assert hasattr(s, 'SpeechConfig'), 'the azure speech sdk did not load'
 print('  azure speech sdk ok')"
 test -x /usr/bin/inteliboy-say
+test -x /usr/bin/inteliboy-hear
+test -f /usr/libexec/inteliboy/azure/recognise
 test -f /usr/share/avatari/data/azure-visemes.txt
 echo "inteliboy-adapters installed"

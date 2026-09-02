@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Transcribe one utterance with Azure Speech.
+
+    adapters/azure/recognise <utterance.wav>
+    -> {"text": "turn the volume down"}      on stdout
+
+The `final` half of the speech port's recognition, and only that half. Partials
+stay local: they feed a resolver that answers in microseconds and go past it
+every 32 ms, so a network round trip per partial would spend the entire budget
+the fast path exists to save.
+
+An improvement, never a dependency. Speech in is how a person reaches this
+device at all, so a failure here is not an error — audi falls back to the local
+model and the device keeps listening. That is the same arrangement the voice
+already has, and for a stronger reason: a mute appliance is annoying, a deaf
+one is unreachable.
+
+The key comes from the environment, which the launcher fills from cogiti's
+secret store. Nothing here knows where it is kept.
+"""
+
+import json
+import os
+import sys
+
+TIMEOUT_S = 15
+
+
+def fail(message):
+    # stdout stays clean JSON or empty: audi reads stdout and treats anything
+    # unparseable as "no transcript", which is the correct outcome for every
+    # failure in this file.
+    print(message, file=sys.stderr)
+    return 1
+
+
+def main(argv):
+    if not argv:
+        return fail("usage: recognise <utterance.wav>")
+    path = argv[0]
+    if not os.path.exists(path):
+        return fail("no such file: %s" % path)
+
+    key = os.environ.get("AZURE_SPEECH_KEY")
+    region = os.environ.get("AZURE_SPEECH_REGION")
+    if not (key and region):
+        return fail("AZURE_SPEECH_KEY / AZURE_SPEECH_REGION are not set")
+
+    try:
+        import azure.cognitiveservices.speech as speechsdk
+    except ImportError as e:
+        return fail("azure speech sdk not installed: %s" % e)
+
+    cfg = speechsdk.SpeechConfig(subscription=key, region=region)
+    cfg.speech_recognition_language = os.environ.get("AZURE_STT_LANGUAGE",
+                                                     "en-US")
+    # One utterance, already segmented by the voice activity detector. The
+    # continuous API would duplicate work audi has done better: it holds the
+    # microphone and knows where the speech began, including the pre-roll.
+    recogniser = speechsdk.SpeechRecognizer(
+        speech_config=cfg,
+        audio_config=speechsdk.audio.AudioConfig(filename=path))
+
+    try:
+        result = recogniser.recognize_once_async().get()
+    except Exception as e:                                    # noqa: BLE001
+        return fail("recognition failed: %s" % e)
+
+    if result.reason == speechsdk.ResultReason.RecognizedSpeech:
+        print(json.dumps({"text": result.text}, separators=(",", ":")))
+        return 0
+    if result.reason == speechsdk.ResultReason.NoMatch:
+        # Silence, or nothing it could make words of. An empty transcript is a
+        # real answer and not a failure; saying so lets audi skip the fallback.
+        print(json.dumps({"text": ""}, separators=(",", ":")))
+        return 0
+    detail = getattr(result, "cancellation_details", None)
+    return fail("azure declined: %s %s" % (
+        result.reason, getattr(detail, "error_details", "") or ""))
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
