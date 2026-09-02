@@ -30,9 +30,21 @@ note = "the only repo whose tests currently prove something. Keep it that way."
 path = "../cogiti"
 role = "component"
 lang = "python"
-owns = ["agenti-protocol", "audi-protocol", "vidi-protocol", "service-manifest", "command-table"]
+owns = ["agenti-protocol", "speech-protocol", "vidi-protocol", "service-manifest", "command-table"]
 test = "make test"
 note = "slice 1: the job and protocol layer. Had a test command from its first line of code."
+
+[audi]
+path = "../audi"
+role = "component"
+lang = "python"
+# It owns nothing on the wire. cogiti owns the speech protocol, which is why
+# the spec is `../cogiti/docs/speech-protocol.md` and why cogiti's half landed
+# first with a fake to check it against.
+owns = []
+consumes = ["speech-protocol"]
+test = "make test"
+note = "the real speech adapter. Holds the speaker as well as the microphone: echo cancellation needs both in one clock domain, measured at 23x the noise floor. See docs/adapters.md."
 
 [lfs]
 path = "../lfs"
@@ -45,7 +57,6 @@ note = "a build tool. Holds its own example distros and no file of ours. The orc
 # --- not yet created. Listed so the orchestrator knows they are coming and
 # --- does not invent a home for their work inside cogiti.
 #
-# [audi]     ears and voice     owns audi-protocol
 # [vidi]     eyes and identity  owns vidi-protocol
 # [agenti]   the job runner     consumes agenti-protocol
 # [memori]   knowledge base     library, no protocol
