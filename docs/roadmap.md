@@ -38,7 +38,7 @@ these two files; do not paste the plan into the prompt.
 | 6 | memory | stop asking you what it already knows |
 | 7 | credentials and external tools | act on the world, with consent |
 | 8 | vision and speaker identity | know who it is talking to |
-| 9 | configuration by voice | be set up without a keyboard |
+| 9 | configuration by voice, and the owner's own credentials | be set up without a keyboard, and spend nobody else's quota |
 | 10 | persona and load behaviour | be honest when it is overloaded |
 | 11 | update, backup and reset | be updated without forgetting you |
 | 12 | proactivity | speak first, at the right moment, rarely |
