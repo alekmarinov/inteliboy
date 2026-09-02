@@ -32,12 +32,32 @@ PHRASES=(
   "-|Why is the sea salty?"
 )
 
+# Save the mixer and put it back afterwards.
+#
+# The phrase list contains "turn the volume down" and "mute", and those
+# commands work — so the first version of this script quietened the speaker it
+# was testing through, and every phrase after it was too faint for the
+# microphone to hear. It reported "not heard at all" for eleven phrases and the
+# cause was itself.
+#
+# A test that issues real commands has to undo them. This one is only obvious
+# in hindsight because the device's output is also the test's input.
+"${SSH[@]}" 'alsactl --no-ucm store -f /run/mixer-before-test.state' >/dev/null 2>&1
+restore() {
+    "${SSH[@]}" 'alsactl --no-ucm restore -f /run/mixer-before-test.state 2>/dev/null;
+                 amixer -q sset Master 100% unmute 2>/dev/null' >/dev/null 2>&1
+}
+trap restore EXIT
+
 printf "  %-28s %-12s %s\n" "SAID" "EXPECTED" "WHAT IT DID"
 pass=0; fail=0
 for entry in "${PHRASES[@]}"; do
     want=${entry%%|*}; phrase=${entry#*|}
     before=$("${SSH[@]}" 'wc -l < /var/log/cogiti-trace.jsonl 2>/dev/null || echo 0')
 
+    # Full volume before every phrase: the device has to hear itself, and the
+    # phrase before this one may well have been "turn the volume down".
+    "${SSH[@]}" 'amixer -q sset Master 100% unmute 2>/dev/null' >/dev/null 2>&1
     "${SSH[@]}" "timeout 90 /usr/bin/inteliboy-say '$phrase' >/dev/null 2>&1 && \
                  timeout 60 aplay -q /run/inteliboy-say.wav 2>/dev/null" >/dev/null 2>&1
 
