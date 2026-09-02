@@ -116,3 +116,26 @@ confirm    = "Restart the device?"
 speak      = "Restarting."
 present    = "none"
 timeout_ms = 2000
+
+# ------------------------------------------------------------------ jobs --
+#
+# A timer outlives its turn, so it is a job and not a command — command-table.md
+# is emphatic that forcing one into the table is how a device ends up pausing
+# for two seconds in the middle of a conversation.
+#
+# `announce` is what it says when it fires, which may be an hour later with
+# nobody having asked anything.
+
+[set_timer]
+job      = "timer"
+speak    = "Timer set for {duration_human}."
+announce = "Your timer for {duration_human} is up."
+present  = "none"
+
+  [set_timer.args]
+  duration = { slot = "duration", required = true, ask = "For how long?" }
+
+[cancel_timer]
+job     = "cancel_timer"
+speak   = "Cancelled {title}."
+present = "none"
