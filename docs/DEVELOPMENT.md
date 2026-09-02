@@ -299,6 +299,44 @@ Put them in `inteliboy/HOUSE-RULES.md`, have each repo's CLAUDE.md open with a
 one-line include, and add a drift check that the included copy matches. That
 is §3 applied to prose, and it costs nothing.
 
+## 11b. Versions: every change gets one
+
+**Semver, and the major stays 0 until the appliance is a production release.**
+0.y.z is semver's own name for "anything may change", which is exactly true
+here; 1.0.0 is a promise about compatibility that nothing is ready to make.
+
+- **patch** — fixes, and nothing a user could ask for that they could not
+  ask for before.
+- **minor** — anything new: an intent, a provider, a port filled, a setting.
+- **major** — not until production. `tools/release.sh` refuses the word, so
+  reaching 1.0.0 is an edit to that script and cannot be a typo at a prompt.
+
+Every repository carries its own version as an **unprefixed git tag** —
+`0.2.0`, never `v0.2.0` — and the appliance carries one for the image as a
+whole. A component's tag says what that component is; InteliBoy's says what
+was flashed. They move independently and are not expected to match.
+
+For the appliance, use the tool rather than editing anything:
+
+    tools/release.sh minor      # or patch
+    tools/release.sh --check    # verify, change nothing
+
+It exists because `distro.conf` states the number **twice** — `VERSION`, and
+again inside `PRETTY_NAME` — and lfs *reads* that file rather than sourcing
+it, deliberately, so one field cannot refer to another. Two hand-maintained
+copies of a number is a drift waiting to happen; `--check` fails if they
+disagree with each other or with the latest tag, so an image can never claim
+a version nobody released.
+
+For a component, the tag is the whole ceremony:
+
+    git tag -a 0.2.0 -m "cogiti 0.2.0" && git push --tags
+
+**A version that never moves is worse than no version.** The device reported
+`InteliBoy 0.0.0` across every image ever built, including two that differed
+by a working voice — so the one question a running device can always answer,
+*what are you*, was answered identically by every one of them.
+
 ## 12. Operating it from a Claude session
 
 The structure decided in §4 — a main repo containing every component, with lfs
