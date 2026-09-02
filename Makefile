@@ -194,15 +194,31 @@ talk:
 # renderer does not come up, this says so and shows its log, because a target
 # that claims success having started nothing is worse than one that fails.
 AVATARI_SOCK ?= /tmp/avatari.sock
+AVATARI_PID  ?= /tmp/avatari.pid
 
-# AUDIO=1 passes --audio, which opens ALSA. Off by default here because this
-# workstation has no sound card at all: `aplay -l` finds none, WSLg offers only
-# a PulseAudio bridge, and avatari talks to ALSA directly. On the appliance the
-# question does not arise — /etc/avatari.conf sets audio.enabled = true and the
-# image carries alsa-lib, alsa-utils and an alsactl that unmutes at boot.
+# A pidfile, not `pgrep -f avatari`. Any pgrep/pkill pattern that appears in
+# the command line running it matches that command line too — so the check
+# finds itself, and a kill kills the shell doing the killing. That cost three
+# dead shells and one target that started nothing while reporting success.
+
+# Audio on by default; AUDIO=0 turns it off.
 #
-# The mouth does not depend on this. Visemes run against audio_start_ns whether
-# or not anything plays, which is why the head is demonstrable here at all.
+# On, because asking for it costs nothing when it is unavailable. avatari opens
+# the device, fails, and says so once:
+#
+#   audio: no playback device 'default' (...) — continuing silently;
+#          lipsync does not depend on it
+#
+# — then renders exactly as before. So the only thing a default of off bought
+# was a silent head on a machine whose audio worked, which is the failure this
+# session actually hit. The appliance agrees: /etc/avatari.conf has
+# audio.enabled = true, and the image carries alsa-lib, alsa-utils and an
+# alsactl that unmutes at boot.
+#
+# The mouth never depends on this. Visemes run against audio_start_ns whether
+# or not anything plays, which is why the head is demonstrable on a workstation
+# with no sound card at all.
+AUDIO ?= 1
 
 renderer:
 	@$(MAKE) -C $(AVATARI) PLATFORM=desktop >/dev/null
@@ -211,7 +227,8 @@ renderer:
 	  && echo "avatari already up on $(AVATARI_SOCK)" && exit 0 || true; \
 	rm -f $(AVATARI_SOCK); \
 	( cd $(AVATARI) && exec ./build/desktop/avatari --socket $(AVATARI_SOCK) \
-	    $(if $(AUDIO),--audio,) >/tmp/avatari.log 2>&1 & ); \
+	    $(if $(filter-out 0,$(AUDIO)),--audio,) >/tmp/avatari.log 2>&1 & \
+	  echo $$! > $(AVATARI_PID) ); \
 	for i in $$(seq 1 60); do \
 	  python3 -c "import socket,sys; s=socket.socket(socket.AF_UNIX); \
 	    sys.exit(0 if not s.connect_ex('$(AVATARI_SOCK)') else 1)" 2>/dev/null \
@@ -232,6 +249,14 @@ renderer:
 .PHONY: tap
 tap: renderer
 	@python3 tools/tap.py
+
+## renderer-stop: stop the renderer this Makefile started
+.PHONY: renderer-stop
+renderer-stop:
+	@if [ -f $(AVATARI_PID) ] && kill -0 $$(cat $(AVATARI_PID)) 2>/dev/null; then \
+	  kill $$(cat $(AVATARI_PID)) && echo "stopped avatari ($$(cat $(AVATARI_PID)))"; \
+	else echo "no renderer of ours is running"; fi
+	@rm -f $(AVATARI_PID) $(AVATARI_SOCK)
 
 ## audio-check: say which link in the sound chain is broken
 .PHONY: audio-check
