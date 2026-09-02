@@ -1,0 +1,18 @@
+# The time, as something you can read a second time.
+#
+# A template names objects and relationships and never a coordinate: layout
+# belongs to the renderer, which is the only thing that knows the screen.
+# Adding a card is adding a file.
+id     = "brain/clock"
+kind   = "group"
+region = "stage"
+
+  [[children]]
+  kind  = "text"
+  style = "headline"
+  text  = "{time_24h}"
+
+  [[children]]
+  kind  = "text"
+  style = "caption"
+  text  = "{date_spoken}"

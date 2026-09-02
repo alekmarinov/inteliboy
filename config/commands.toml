@@ -15,12 +15,14 @@
 [get_time]
 provider = "clock.now"
 speak    = "It's {time_spoken}."
-present  = "{time_24h}"
+# A named template in config/presentation/. A bare string would also work and
+# is right for a one-line display; this one is a card.
+present  = "clock_card"
 
 [get_date]
 provider = "clock.today"
 speak    = "It's {date_spoken}."
-present  = "{date_iso}"
+present  = "date_card"
 
 # --------------------------------------------------------- conversation --
 #
