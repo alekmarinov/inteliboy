@@ -1,7 +1,7 @@
 # 2026-09-03-stage-5c-routing — saying the sentence a service claimed
 
-Status: **draft — not approved. Nothing implemented.**
-Approved by: —
+Status: **landed** — cogiti 0.9.0.
+Approved by: the user, 2026-09-03
 
 ## The ask
 
@@ -86,3 +86,34 @@ proves it: "what's the bitcoin price" answers from the service; "what time is
    whole of §2's discipline applied here.
 3. **The false accept.** "Whatever the mechanism, a born service must not
    answer a sentence that was meant for something else."
+
+
+## What landed, and the thing a device found
+
+Answered (c): say the value **and** glance at the panel. The first half is
+built; **the second half is not possible today and that is a finding, not an
+omission.** avatari's scene protocol says "the periphery never takes the gaze
+at all" — deliberately, so a feed updating once a second does not drag the
+eyes back. A service is pinned to the periphery by rule (§9), so there is no
+way to glance at one without a change avatari owns.
+
+Proved by asking:
+
+- "what's the bitcoin price?" → "the Bitcoin price: BTC $77613.735", with no
+  model call
+- "how is bitcoin looking" → escalated, exactly as §5 says it must
+- "what time is it" → still the built-in
+
+**And then the device found the case the design implies but nobody had said
+out loud.** "Show the weather" resolved to the built-in `pin_thing` rather
+than to the weather service that claims that exact phrase. Built-ins win, so
+that is the rule working — and the consequence is a service listing a sentence
+it will never receive, with nobody any the wiser. The gate now says so before
+you approve it: *"I won't get 'show the weather' — that already means
+something else. Shall I keep it anyway?"*
+
+## Still open
+
+- **The glance.** Needs an avatari change: either a way to direct attention at
+  a pinned object by id, or an exception to the periphery rule. It is a
+  presentation-protocol change and avatari owns that contract.
