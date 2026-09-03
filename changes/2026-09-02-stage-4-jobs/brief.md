@@ -195,12 +195,34 @@ Two things caught by testing rather than by reading:
   answer arriving anyway. The user says stop, the work stops, and the device
   tells them the answer regardless.
 
+## The queue, landed — and why it has no hardware proof
+
+Over the cap the request is accepted, the person is told what it is behind,
+and it starts when a slot appears. Six tests, cogiti 0.4.0.
+
+Two things the survey missed and this found:
+
+- `AgentRun` inserts its job row **directly**, not through `jobs.spawn`, so
+  `_check_caps` never saw an agent job. The cap read as if it prevented
+  concurrent escalations and prevented nothing.
+- It could not have mattered before. While escalations blocked their turn only
+  one could exist; detaching made the cap both reachable and necessary.
+
+**It cannot currently be reached by voice, and that is the finding.** The
+device is half duplex — deaf while it speaks — so asking a second question
+means waiting out the "I'm still working on that" line, about twenty seconds.
+A job finishes in twelve to fifteen. *The enforced gap is longer than the
+work*, so the first job is always done before a second question can be asked.
+Three attempts on hardware, each one detaching rather than queueing.
+
+It becomes reachable with any of: barge-in (no forced gap), jobs that take
+longer than a sentence — which Stage 5's services are — or an input that is
+not the microphone.
+
 ## Still open from this stage
 
 - **needs-input** — the state exists and `turn.py` knows it; no job asks a
   question yet, so the pending-question path is unexercised.
-- **The queue.** `LIMITS` and `Backpressure` exist and nothing queues. The
-  decision was queue-only for this stage and it is not done.
 - **Job selection by name.** "Cancel the repository thing" cannot be said; with
   more than one candidate the device asks which, which is honest and is not the
   answer.
