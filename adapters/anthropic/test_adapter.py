@@ -17,6 +17,7 @@ import io
 import json
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -62,6 +63,10 @@ def answer_block(**kw):
     return Block("tool_use", id="t0", name="answer", input=kw)
 
 
+def tool_block(name, args, id):
+    return Block("tool_use", id=id, name=name, input=args)
+
+
 # ------------------------------------------------------------ the tests --
 
 class TestPrompt(unittest.TestCase):
@@ -90,6 +95,115 @@ class TestPrompt(unittest.TestCase):
         adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
         self.assertEqual(client.calls[0]["thinking"], {"type": "adaptive"})
         self.assertNotIn("budget_tokens", json.dumps(client.calls[0]["thinking"]))
+
+
+class TestDump(unittest.TestCase):
+    """Everything sent and everything returned, on disk.
+
+    Three faults in one day were all the same shape: a strange sentence out
+    loud, and the cause in a payload nobody could see. The trace said which
+    tools were called; it never said what the model was given.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+
+    def only_file(self):
+        names = [n for n in os.listdir(self.dir) if n.endswith(".json")]
+        self.assertEqual(len(names), 1, names)
+        with open(os.path.join(self.dir, names[0])) as f:
+            return json.load(f)
+
+    def test_nothing_is_written_unless_asked(self):
+        """It holds whole conversations in the clear. A device that keeps
+        every word said near it by default is a different product."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "hi"}}, StubInbox(),
+                         adapter.Dump(None))
+        self.assertEqual(os.listdir(self.dir), [])
+
+    def test_it_records_the_call_it_actually_made(self):
+        """The request verbatim, so a replay is create(**request) rather than
+        a reconstruction from prose."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        run = {"prompt": {"text": "what time is it"},
+               "tools": [{"name": "http", "hosts": ["example.com"]}]}
+        adapter.run_once(client, run, StubInbox(), adapter.Dump(self.dir))
+        doc = self.only_file()
+        self.assertEqual(doc["prompt"]["text"], "what time is it")
+        self.assertEqual(doc["granted"], run["tools"])
+        self.assertIn("voice appliance", doc["system"])
+        # The declarations as sent, not the grant that produced them: the
+        # host list reaching the model is the thing worth reading back.
+        self.assertEqual([t["name"] for t in doc["tools"]],
+                         ["answer", "http"])
+        self.assertIn("example.com", json.dumps(doc["tools"]))
+        step = doc["steps"][0]
+        self.assertEqual(step["request"]["model"], adapter.MODEL)
+        self.assertEqual(step["request"]["messages"][0]["content"],
+                         "what time is it")
+        self.assertEqual(doc["outcome"]["say"], "ok")
+
+    def test_a_brokered_call_records_its_result(self):
+        """The half that was hardest to see from outside: what the tool was
+        asked and what it handed back."""
+        client = StubClient(
+            Response([tool_block("device", {"command": "get_disk"}, "t1")]),
+            Response([answer_block(say="four gigabytes free")]))
+        inbox = StubInbox({"t1": {"ok": True, "value": {"free": "4G"}}})
+        adapter.run_once(client, {"prompt": {"text": "much room left?"}},
+                         inbox, adapter.Dump(self.dir))
+        calls = self.only_file()["steps"][0]["tool_calls"]
+        self.assertEqual(calls[0]["name"], "device")
+        self.assertEqual(calls[0]["args"], {"command": "get_disk"})
+        self.assertEqual(calls[0]["result"], {"ok": True,
+                                              "value": {"free": "4G"}})
+
+    def test_it_is_readable_before_the_run_ends(self):
+        """The two runs that most needed reading today were a kill and a
+        hang. A dump flushed only on a clean exit is empty for exactly
+        those."""
+        seen = {}
+        class Watching(StubInbox):
+            def wait_ids(self, ids):
+                names = [n for n in os.listdir(self.dir_) if n.endswith(".json")]
+                with open(os.path.join(self.dir_, names[0])) as f:
+                    seen["mid"] = json.load(f)
+                return super().wait_ids(ids)
+        inbox = Watching({"t1": {"ok": True, "value": 1}})
+        inbox.dir_ = self.dir
+        client = StubClient(
+            Response([tool_block("device", {"command": "get_time"}, "t1")]),
+            Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "x"}}, inbox,
+                         adapter.Dump(self.dir))
+        self.assertEqual(len(seen["mid"]["steps"]), 1,
+                         "the first exchange was not on disk while the "
+                         "second was still being waited on")
+
+    def test_it_keeps_only_the_newest(self):
+        """One file per escalation on a device with four gigabytes free.
+        The failure mode of filling that is the appliance stopping, which is
+        worse than the debugging being harder."""
+        for i in range(5):
+            open(os.path.join(self.dir, "2026010%dT000000Z-x.json" % i),
+                 "w").close()
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.KEEP = 3
+        try:
+            adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox(),
+                             adapter.Dump(self.dir))
+        finally:
+            adapter.KEEP = 200
+        left = sorted(os.listdir(self.dir))
+        self.assertEqual(len(left), 3, left)
+        self.assertNotIn("20260100T000000Z-x.json", left, "oldest survived")
+
+    def test_an_unwritable_directory_does_not_lose_the_answer(self):
+        client = StubClient(Response([answer_block(say="ok")]))
+        out = adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox(),
+                               adapter.Dump("/proc/nope/nowhere"))
+        self.assertEqual(out["say"], "ok")
 
 
 class TestTools(unittest.TestCase):
