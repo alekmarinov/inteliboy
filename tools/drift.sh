@@ -13,6 +13,11 @@
 set -u
 HOST=${1:?usage: drift.sh <host> [ssh args...]}
 shift || true
+# Accept "1.2.3.4" or "root@1.2.3.4". tools/verify-device.sh prepends root@
+# and this did not, so the same address worked with one tool and failed with
+# the other — which cost two mistakes in five minutes and would cost a soak
+# loop rather more.
+case "$HOST" in *@*) ;; *) HOST="root@$HOST" ;; esac
 LFS=${LFS:-../lfs}
 
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
@@ -38,6 +43,31 @@ for pkg in "$LFS"/packages/{cogiti,audi,avatari,reflexi,inteliboy-adapters}.tar.
     sudo rm -rf "$d"
 done
 sort -k2 "$tmp/want" -o "$tmp/want"
+
+# Binaries are excluded, and this is not laziness. The image build strips
+# debug symbols *after* installing packages — 1.7 GB of them — so every ELF
+# on the device differs from the one in its package by construction. Compared
+# anyway, a freshly flashed device reported 147 differences and the tool
+# became something to ignore.
+#
+# What is left is what actually gets hand-patched: python, shell, configs,
+# data. A stripped binary that has been swapped for a different build is
+# invisible to this, and catching that wants build-ids rather than hashes —
+# worth doing when somebody starts pushing compiled components by hand.
+: > "$tmp/text"
+while read -r sum path; do
+    case "$path" in
+        *.so|*.so.*|*.a|*/bin/*|*/sbin/*|*/libexec/*) continue ;;
+    esac
+    printf '%s %s\n' "$sum" "$path" >> "$tmp/text"
+done < "$tmp/want"
+skipped=$(( $(wc -l < "$tmp/want") - $(wc -l < "$tmp/text") ))
+mv "$tmp/text" "$tmp/want"
+grep -vE '\.so$|\.so\.|\.a$|/bin/|/sbin/|/libexec/' "$tmp/owned" > "$tmp/o2" || true
+mv "$tmp/o2" "$tmp/owned"
+n=$(wc -l < "$tmp/owned")
+echo "$skipped binary file(s) not compared: the image strips them after packaging"
+echo "comparing $n text file(s) — python, shell, config, data"
 
 # And the device's.
 #
