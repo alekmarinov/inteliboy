@@ -1,26 +1,33 @@
-# The current set. Written by 'make lock'.
+# The set an image was built from. Written by 'make lock'.
 #
-# This records what the components are, not that they have been run
-# together. It earns the word 'proven' only once an image built from
-# these commits has booted — write that below, with the date, when it
-# has. A lock that claims more than it knows is worse than none.
-# Generated 2026-09-01T20:19:19Z
-avatari    = { version = "0.1.0-2-g3d2d028", commit = "3d2d0284f92192ea8a5629d1fc80cf63b65cb4ed" }
-reflexi    = { version = "0.1.0", commit = "330400e953b8342631ffc63d8698b401a3330442" }
-cogiti     = { version = "0.1.0", commit = "d83123a2cd5802a62f3001c9a3568752dc044643" }
-lfs        = { version = "LFS_11.2-3-g98e83fd", commit = "98e83fdec3c4af7a4c2e0b7eb684d2b30bebce8b" }
+# Read from build/staged.lock, which tools/stage.sh writes as it
+# stages each tarball — so these are the commits a build actually
+# consumed, not wherever HEAD has since moved to. That distinction
+# is why this file was previously wrong: it named an avatari two
+# commits ahead of the one inside the image.
+#
+# It still records what was built, not that it works. That word is
+# earned by booting it, and is written below by hand.
+# Generated 2026-09-03T00:00:53Z
+avatari    = { version = "0.1.0-5-gb22fbf0", commit = "b22fbf05e806a3c7da1eeb2dfcf9df9795ae752b" }
+reflexi    = { version = "0.1.0-7-g738293d", commit = "738293d497ec7e2f8f8ca28017bb2ccdedb67655" }
+cogiti     = { version = "0.1.0-26-gac47d04", commit = "ac47d0450510a4e528680e21efcbf4cbee1328db" }
+audi       = { version = "0.1.0-4-gd993616", commit = "d993616360cfc74cfeddc535f1c979577e7a2a7f" }
+inteliboy  = { version = "ff37791-dirty", commit = "ff377914893171d8b11d00ead50db32625dfd245" }
 
-# NOT PROVEN. Recorded 2026-09-01.
+# Proven: InteliBoy 0.1.0, built 2026-09-02 from exactly the commits above and
+# booted under qemu the same evening. It identified itself as 0.1.0, took ssh
+# by key, started the renderer and the brain, resolved an utterance through
+# reflexi, and passed tools/verify-device.sh 13 of 14. The miss is "there is a
+# capture device", which a virtual machine does not have; the same suite reaches
+# 14 of 14 on the hardware at .165.
 #
-# An image was built and booted today and it worked — renderer up, ssh by key,
-# root:*, awk present. But it does not correspond to the set above. The image
-# carries avatari from a package built 2026-08-31 09:33, whose content became
-# commit afc0059; avatari's HEAD moved to 3d2d028 while that image was being
-# verified, adding `annotate` and `camera`. Two features named here have never
-# been in an image.
+# tools/verify-image.sh checked the image itself for all thirteen changes that
+# release was about, and found them.
 #
-# This is a flaw in `make lock` and not only in this run: it reads HEAD at lock
-# time, and nothing ties it to what a build actually consumed. It is truthful
-# only when run immediately after a build with no commit in between, and
-# nothing enforces that. Until it does, read this file as "what the components
-# are now", and trust the paragraph below it for what was proven.
+# One caveat, and it is the reason this line is not simply "proven": the
+# adapters were staged from a DIRTY tree — `inteliboy = ff37791-dirty` — because
+# this repository was being edited while the build ran. The adapters directory
+# itself was not among the edits, so the content is believed to be ff37791's,
+# but "believed" is the honest word: that tarball cannot be reproduced from a
+# commit. The next build is clean and this note goes away with it.

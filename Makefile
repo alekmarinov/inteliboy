@@ -92,24 +92,23 @@ verify: status test
 # commit rather than being left out - being absent from the lock and being
 # unreleased look the same otherwise.
 lock:
-	@{ echo "# The current set. Written by 'make lock'."; \
+	@test -f build/staged.lock || { \
+	  echo "build/staged.lock is not there, so nothing is known to have been"; \
+	  echo "staged. Run 'make stage' (or a full image build) first — a lock"; \
+	  echo "written from HEAD would describe source nobody built."; exit 1; }
+	@{ echo "# The set an image was built from. Written by 'make lock'."; \
 	   echo "#"; \
-	   echo "# This records what the components are, not that they have been run"; \
-	   echo "# together. It earns the word 'proven' only once an image built from"; \
-	   echo "# these commits has booted — write that below, with the date, when it"; \
-	   echo "# has. A lock that claims more than it knows is worse than none."; \
+	   echo "# Read from build/staged.lock, which tools/stage.sh writes as it"; \
+	   echo "# stages each tarball — so these are the commits a build actually"; \
+	   echo "# consumed, not wherever HEAD has since moved to. That distinction"; \
+	   echo "# is why this file was previously wrong: it named an avatari two"; \
+	   echo "# commits ahead of the one inside the image."; \
+	   echo "#"; \
+	   echo "# It still records what was built, not that it works. That word is"; \
+	   echo "# earned by booting it, and is written below by hand."; \
 	   echo "# Generated $$(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
-	   for p in $$($(PY) paths); do \
-	     [ -d "$$p/.git" ] || continue; \
-	     n=$$(basename $$p); \
-	     if ! c=$$(git -C $$p rev-parse HEAD 2>/dev/null); then \
-	       printf '%-10s = { version = "0.0.0", commit = "" }  # no commits yet\n' "$$n"; \
-	       continue; \
-	     fi; \
-	     v=$$(git -C $$p describe --tags --dirty 2>/dev/null \
-	          || echo "0.0.0-g$$(git -C $$p describe --always --dirty)"); \
-	     printf '%-10s = { version = "%s", commit = "%s" }\n' "$$n" "$$v" "$$c"; \
-	   done; } > versions.lock
+	   grep -v '^#' build/staged.lock | grep -v '^[[:space:]]*$$'; \
+	 } > versions.lock
 	@cat versions.lock
 
 sync:

@@ -34,6 +34,25 @@ SOURCES="$DISTRO_DIR/sources"
 # docs/python-on-the-appliance.md, which is the trap that costs a day.
 COMPONENTS="avatari reflexi cogiti audi"
 
+# What this run actually stages, recorded as it happens.
+#
+# `make lock` used to read each repository's HEAD at lock time, and nothing
+# tied that to what a build had consumed — so the lock was truthful only if
+# nobody committed between the build and the lock, and nothing enforced it.
+# versions.lock has carried a paragraph admitting this since the day an image
+# shipped an avatari two commits behind the one the lock named.
+#
+# The fix is that the step which stages is the step that records. A version
+# here is what went into a tarball, and the tarball is what the package built
+# from, so this file cannot drift from the image without someone deleting it.
+STAGED="$BASE_DIR/build/staged.lock"
+mkdir -p "$BASE_DIR/build"
+{ echo "# What 'make stage' put into the image, written as it was staged."
+  echo "# 'make lock' reads this rather than HEAD: HEAD is where the source"
+  echo "# is now, and only this is what the build consumed."
+  echo "# Staged $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$STAGED"
+
 for c in $COMPONENTS; do
     repo="$BASE_DIR/../$c"
     [ -d "$repo" ] || { echo "$c: no repository at $repo"; exit 1; }
@@ -44,6 +63,9 @@ for c in $COMPONENTS; do
         *-dirty) echo "$c $ver  (uncommitted changes - the version says so on purpose)" ;;
         *)       echo "$c $ver" ;;
     esac
+
+    printf '%-10s = { version = "%s", commit = "%s" }\n' \
+        "$c" "$ver" "$(git -C "$repo" rev-parse HEAD 2>/dev/null)" >> "$STAGED"
 
     make -s -C "$repo" dist
     make -s -C "$repo" dist-assets
@@ -101,7 +123,18 @@ done
 # `anthropic` and its dependencies: audi brings its own, and duplicating them
 # would put two copies of numpy in the image.
 ADAPTERS_VER=$(git -C "$BASE_DIR" describe --tags --always --dirty 2>/dev/null || echo 0.0.0)
-echo "inteliboy-adapters $ADAPTERS_VER"
+case "$ADAPTERS_VER" in
+    *-dirty)
+        echo "inteliboy-adapters $ADAPTERS_VER  (uncommitted changes — this"
+        echo "  tarball cannot be reproduced from a commit, and versions.lock"
+        echo "  will say so)" ;;
+    *)  echo "inteliboy-adapters $ADAPTERS_VER" ;;
+esac
+# This repository ships too: the adapters are ours, and an image is not
+# described by its components alone.
+printf '%-10s = { version = "%s", commit = "%s" }\n' \
+    "inteliboy" "$ADAPTERS_VER" "$(git -C "$BASE_DIR" rev-parse HEAD 2>/dev/null)" \
+    >> "$STAGED"
 rm -rf "$BASE_DIR/build/adapters"
 mkdir -p "$BASE_DIR/build/adapters/inteliboy-adapters-$ADAPTERS_VER/wheels"
 cp -r "$BASE_DIR/adapters" \
