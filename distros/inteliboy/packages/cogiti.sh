@@ -46,20 +46,6 @@ sys.exit(main(sys.argv[1:]))
 LAUNCHER
 chmod 755 /usr/bin/cogiti
 
-# The uid a service runs as. services.md §1 gives a service "a name, a
-# namespace, a uid", and one shared account is the cheap 80% of that: it stops
-# a service reading /var/lib/cogiti/secrets, which — everything on this
-# appliance being root — it could simply open until now.
-#
-# Not per-service, yet. That is real isolation between services rather than
-# only between a service and cogiti, and it means user management on a device
-# that has none.
-#
-# 51 because sshd took 50 and these are the only two accounts here.
-groupadd -g 51 cogiti-service 2>/dev/null || true
-useradd -c 'cogiti services' -d /var/lib/cogiti/services -g cogiti-service \
-        -s /bin/false -u 51 cogiti-service 2>/dev/null || true
-
 test -f /usr/lib/cogiti/cogiti/main.py
 python3 -c "import sys; sys.path.insert(0,'/usr/lib/cogiti'); import cogiti.main"
 echo "cogiti installed"

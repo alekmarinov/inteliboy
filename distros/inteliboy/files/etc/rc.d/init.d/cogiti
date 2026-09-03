@@ -75,6 +75,22 @@ case "$1" in
       fi
       install -d -m 0700 /var/lib/cogiti
 
+      # The account services run as. Created here, at boot, and not by the
+      # package — because a package that calls useradd captures the change
+      # only if the account did not already exist when it was built. It
+      # worked in 0.2.0 and silently did not in 0.2.1, which was rebuilt over
+      # a tree that already had the user: the image then had every service
+      # running as root with nothing to say it had changed.
+      #
+      # Idempotent, so it is simply true after every boot rather than true if
+      # a build happened to capture it. 51 because sshd took 50.
+      if ! getent passwd cogiti-service >/dev/null 2>&1; then
+         groupadd -g 51 cogiti-service 2>/dev/null || true
+         useradd -c 'cogiti services' -d /var/lib/cogiti/services \
+                 -g cogiti-service -s /bin/false -u 51 cogiti-service \
+                 2>/dev/null || true
+      fi
+
       # setsid, so the supervisor leads a process group of its own and stop
       # has one handle for the whole stack. Without it the group is init's,
       # and there is nothing to signal but individual pids.

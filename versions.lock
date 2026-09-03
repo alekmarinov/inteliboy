@@ -8,9 +8,9 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-03T04:52:11Z
+# Generated 2026-09-03T05:09:26Z
 avatari    = { version = "0.2.0", commit = "b22fbf05e806a3c7da1eeb2dfcf9df9795ae752b" }
 reflexi    = { version = "0.5.0", commit = "9fe453f2a55eb07f3fde68af439201708c4e3c32" }
-cogiti     = { version = "0.11.0", commit = "c44df3f65105461b07da3ebe7a93218f9c2fb181" }
+cogiti     = { version = "0.11.1", commit = "9c40ac61a4d80300aa2e48ccfdd3f5a0f12e93ad" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.2.0", commit = "47b9fe5718de90a2479b76802b90820f64265178" }
+inteliboy  = { version = "0.2.1", commit = "91b368013cc98fe6a37d4a6edbdabd587126488b" }

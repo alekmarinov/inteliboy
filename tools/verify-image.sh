@@ -47,15 +47,9 @@ have "device readings a service may ask for" /usr/lib/cogiti/cogiti/readings.py 
 have "routing to a born service"             /usr/lib/cogiti/cogiti/phrases.py "def match"
 have "pin_thing in the table"                /etc/cogiti/commands.toml "pin_thing"
 
-echo "== the account a service runs as"
-if sudo grep -q "^cogiti-service:" "$MNT/etc/passwd" 2>/dev/null; then
-    printf '  ok    cogiti-service exists: %s\n' \
-        "$(sudo grep '^cogiti-service:' "$MNT/etc/passwd")"
-    ok=$((ok+1))
-else
-    printf '  MISS  no cogiti-service account; services would run as root\n'
-    bad=$((bad+1))
-fi
+# The account is created at boot rather than by a package — see the init
+# script for why — so what is checked here is that the boot will do it.
+have "the service account is created at boot" /etc/rc.d/init.d/cogiti "cogiti-service"
 
 echo "== no services shipped (they are born on request now)"
 n=$(sudo ls "$MNT/var/lib/cogiti/services" 2>/dev/null | wc -l)
