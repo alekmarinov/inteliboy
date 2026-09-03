@@ -179,3 +179,42 @@ linger   = 15
 provider = "device.hearing"
 speak    = "Yes, I can hear you."
 present  = "none"
+
+# ---------------------------------------------------------------- jobs --
+#
+# Talking about work that outlives its turn. Stage 4; docs/jobs.md §6.
+#
+# All five are `job` rather than `provider`, which is a lie about their
+# nature — none of them outlive their turn — told for a real reason: a
+# provider runs in a worker thread, and the job registry is sqlite with a
+# single-threaded connection.
+
+[what_are_you_doing]
+job      = "what_are_you_doing"
+speak    = ""
+present  = "none"
+
+[list_jobs]
+job      = "list_jobs"
+speak    = ""
+present  = "none"
+# The list stays until something replaces it: it is there to be acted on,
+# not read once.
+linger   = 0
+
+[job_status]
+job      = "job_status"
+speak    = ""
+present  = "none"
+linger   = 12
+
+[job_logs]
+job      = "job_logs"
+speak    = ""
+present  = "none"
+linger   = 0
+
+[cancel_job]
+job      = "cancel_job"
+speak    = ""
+present  = "none"

@@ -18,11 +18,13 @@ speak    = "It's {time_spoken}."
 # A named template in config/presentation/. A bare string would also work and
 # is right for a one-line display; this one is a card.
 present  = "clock_card"
+linger   = 12
 
 [get_date]
 provider = "clock.today"
 speak    = "It's {date_spoken}."
 present  = "date_card"
+linger   = 12
 
 # --------------------------------------------------------- conversation --
 #
@@ -139,3 +141,80 @@ present  = "none"
 job     = "cancel_timer"
 speak   = "Cancelled {title}."
 present = "none"
+
+# ------------------------------------------------------- knowing itself --
+#
+# Everything here used to go to a language model, which could not know any of
+# it and said so at length. A device is the only authority on its own address,
+# its uptime and whether it heard you.
+
+[get_ip]
+provider = "device.ip"
+speak    = "My address is {ip_spoken}."
+present  = "ip_card"
+linger   = 45
+
+[get_uptime]
+provider = "device.uptime"
+speak    = "I have been running for {uptime_spoken}."
+present  = "{uptime_spoken}"
+linger   = 15
+
+[get_hostname]
+provider = "device.hostname"
+speak    = "I am {hostname}."
+present  = "{pretty_name}"
+linger   = 15
+
+[get_disk]
+provider = "device.disk"
+speak    = "There is {free_spoken} free."
+present  = "{free_gb} GB free"
+linger   = 15
+
+[hearing_check]
+# The answer is yes, and it knows: this command only runs because something
+# was heard, transcribed and resolved. Anything else would be the device
+# doubting evidence it is standing on.
+provider = "device.hearing"
+speak    = "Yes, I can hear you."
+present  = "none"
+
+# ---------------------------------------------------------------- jobs --
+#
+# Talking about work that outlives its turn. Stage 4; docs/jobs.md §6.
+#
+# All five are `job` rather than `provider`, which is a lie about their
+# nature — none of them outlive their turn — told for a real reason: a
+# provider runs in a worker thread, and the job registry is sqlite with a
+# single-threaded connection.
+
+[what_are_you_doing]
+job      = "what_are_you_doing"
+speak    = ""
+present  = "none"
+
+[list_jobs]
+job      = "list_jobs"
+speak    = ""
+present  = "none"
+# The list stays until something replaces it: it is there to be acted on,
+# not read once.
+linger   = 0
+
+[job_status]
+job      = "job_status"
+speak    = ""
+present  = "none"
+linger   = 12
+
+[job_logs]
+job      = "job_logs"
+speak    = ""
+present  = "none"
+linger   = 0
+
+[cancel_job]
+job      = "cancel_job"
+speak    = ""
+present  = "none"

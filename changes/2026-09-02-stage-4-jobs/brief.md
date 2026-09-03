@@ -1,7 +1,7 @@
 # 2026-09-02-stage-4-jobs — an answer that outlives the turn that asked for it
 
-Status: **draft — not approved. Nothing below is implemented.**
-Approved by: —
+Status: **landed** — reflexi 0.3.0, cogiti 0.3.1, and the table here.
+Approved by: the user, 2026-09-02
 
 ## The ask
 
@@ -61,7 +61,21 @@ in behaviour and empty in protocol.
 - **pending question** — a `needs-input` job's question, waiting on a list with
   a deadline. Never a callback.
 
-## The four questions I want answered before writing anything
+## The four decisions, as taken
+
+1. **An escalation detaches on a deadline.** It runs inline; if it has not
+   finished in ~5 s the turn says so and it becomes a job. One mechanism, one
+   number. A three second question stays a conversation.
+2. **A finished job speaks if the same session is still active and idle**,
+   otherwise it becomes a pending item mentioned at the end of the next turn.
+   It never interrupts. Unprompted announcement stays in Stage 12, where it is
+   budgeted and has an off switch.
+3. **`stop` resolves by turn state, in this order:** speaking → barge-in; a job
+   named or just mentioned → cancel that job; otherwise the existing `stop`.
+4. **Backpressure is the queue only.** Token budgets and the shedding order
+   stay in Stage 10. "Always accept the request, never silently defer it."
+
+## The questions, as asked
 
 **1. When does an escalation detach?** Three candidates, and this is the
 decision the rest hangs off:
@@ -156,3 +170,37 @@ worry about *first* because the code around them changed tonight:
 
 Branches `stage-4-jobs` in reflexi and cogiti; delete both. `versions.lock`
 restores to the InteliBoy 0.1.0 entry, which is a booted, verified set.
+
+
+## What landed, and what it was proved by
+
+On the appliance at .165, not in simulation:
+
+- `what are you doing` resolves to its own intent and answers "nothing at the
+  moment" when nothing is running — the case the resolver deliberately cannot
+  decide for itself.
+- A slow question ended its **turn at 11.9 s** while the **job ran on to 18.8 s
+  and reached `done`**. That gap is the stage.
+- The answer was delivered at the end of the *next* turn, named by its
+  question, and logged: `delivering 001A063EC18E5899DC68B2A: explain in detail
+  how a lithium battery actually works.`
+
+Two things caught by testing rather than by reading:
+
+- Without `asyncio.shield`, `wait_for` cancels the work it is waiting on. There
+  is a test that fails with the message "wait_for cancelled the work it was
+  waiting on" if the shield is removed.
+- The detached job was first tracked under its asyncio task name, so
+  `pending.drop()` never matched it: stopping a job would not have stopped its
+  answer arriving anyway. The user says stop, the work stops, and the device
+  tells them the answer regardless.
+
+## Still open from this stage
+
+- **needs-input** — the state exists and `turn.py` knows it; no job asks a
+  question yet, so the pending-question path is unexercised.
+- **The queue.** `LIMITS` and `Backpressure` exist and nothing queues. The
+  decision was queue-only for this stage and it is not done.
+- **Job selection by name.** "Cancel the repository thing" cannot be said; with
+  more than one candidate the device asks which, which is honest and is not the
+  answer.
