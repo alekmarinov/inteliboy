@@ -8,26 +8,9 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-03T00:00:53Z
-avatari    = { version = "0.1.0-5-gb22fbf0", commit = "b22fbf05e806a3c7da1eeb2dfcf9df9795ae752b" }
-reflexi    = { version = "0.1.0-7-g738293d", commit = "738293d497ec7e2f8f8ca28017bb2ccdedb67655" }
-cogiti     = { version = "0.1.0-26-gac47d04", commit = "ac47d0450510a4e528680e21efcbf4cbee1328db" }
-audi       = { version = "0.1.0-4-gd993616", commit = "d993616360cfc74cfeddc535f1c979577e7a2a7f" }
-inteliboy  = { version = "ff37791-dirty", commit = "ff377914893171d8b11d00ead50db32625dfd245" }
-
-# Proven: InteliBoy 0.1.0, built 2026-09-02 from exactly the commits above and
-# booted under qemu the same evening. It identified itself as 0.1.0, took ssh
-# by key, started the renderer and the brain, resolved an utterance through
-# reflexi, and passed tools/verify-device.sh 13 of 14. The miss is "there is a
-# capture device", which a virtual machine does not have; the same suite reaches
-# 14 of 14 on the hardware at .165.
-#
-# tools/verify-image.sh checked the image itself for all thirteen changes that
-# release was about, and found them.
-#
-# One caveat, and it is the reason this line is not simply "proven": the
-# adapters were staged from a DIRTY tree — `inteliboy = ff37791-dirty` — because
-# this repository was being edited while the build ran. The adapters directory
-# itself was not among the edits, so the content is believed to be ff37791's,
-# but "believed" is the honest word: that tarball cannot be reproduced from a
-# commit. The next build is clean and this note goes away with it.
+# Generated 2026-09-03T04:52:11Z
+avatari    = { version = "0.2.0", commit = "b22fbf05e806a3c7da1eeb2dfcf9df9795ae752b" }
+reflexi    = { version = "0.5.0", commit = "9fe453f2a55eb07f3fde68af439201708c4e3c32" }
+cogiti     = { version = "0.11.0", commit = "c44df3f65105461b07da3ebe7a93218f9c2fb181" }
+audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
+inteliboy  = { version = "0.2.0", commit = "47b9fe5718de90a2479b76802b90820f64265178" }
