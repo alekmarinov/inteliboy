@@ -1,7 +1,8 @@
 # 2026-09-02-stage-5b-authoring — the device writes a service, and asks
 
-Status: **draft — not approved. Nothing implemented.**
-Approved by: —
+Status: **partly landed** — four questions answered 2026-09-02; the
+machinery is built and the agent does not yet write the code.
+Approved by: the user, 2026-09-02
 
 ## The ask
 
@@ -129,3 +130,39 @@ proves it: `make test`; it must not swallow "what is the eth price", which is
 
 Branch `stage-5b-authoring`; delete it. Nothing is installed by this that a
 `rm -rf` of the service directory does not remove, which is §2 working.
+
+
+## What landed
+
+cogiti 0.6.0, reflexi 0.5.0.
+
+- **Static checks** (`static_checks.py`) — a whitelist, because the adversary
+  has a rewrite loop and a blacklist is a list of what somebody already
+  thought of. Refuses the forms that make analysis meaningless (`eval`,
+  `getattr`, the dunder escapes) rather than trying to analyse them, and
+  extracts the hosts the *code* mentions so they can be checked against what
+  the *manifest* declares.
+- **The dry run** — against a real socket the SDK cannot tell from avatari.
+  Two updates, not one: a service that pins a value and then dies has produced
+  a screenshot rather than a duty. Plus a clean exit on SIGTERM.
+- **The gate's wording** — host, interval, secrets and every phrase.
+- **Approval** — binds code *and* manifest; a mismatch quarantines rather than
+  starts, and never deletes.
+- **The `cogiti-service` uid** — 5a's unfinished decision, now finished. gid,
+  then groups, then uid, in that order.
+- **`pin_thing`** — and the negative case that caught it swallowing "what is
+  the eth price".
+
+## Still open in 5b
+
+**The agent does not write the service yet.** Everything that judges a
+generated service exists and is tested; what is missing is the step that
+produces one. It needs a decision the brief did not think to ask: the agent
+port's `answer` tool returns `say`/`show`/`did`, which is a shape for talking,
+not for emitting two files. Either the adapter grows a tool for writing a
+staged service, or authoring uses a template the agent fills — and that is a
+protocol question, which `CLAUDE.md` §5 says is never delegated and wants its
+own decision.
+
+Steps 1 and 6 are also unwired: `pin_thing` resolves but nothing handles it,
+and `install()` is tested but not called from a turn.
