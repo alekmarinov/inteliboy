@@ -148,8 +148,25 @@ check:
 image:
 	sudo $(MAKE) -C $(LFS) image DISTRO=$(DISTRO) OUT=$(OUT)
 
+## qemu: boot the image — on a copy, so verifying it does not change it
+##
+## A VM boots the image read-write, so every check writes to the artifact:
+## logs, a jobs database, ssh known-hosts, and — the one that made this
+## obvious — a service born during a test, which was then flashed to real
+## hardware along with the image. An image that has been verified must be the
+## same image that was verified.
+##
+## make qemu KEEP=1 to boot build/image.img itself, for when the point is to
+## change it.
+QEMU_IMAGE ?= $(OUT)/image-boot.img
 qemu:
+ifdef KEEP
 	$(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
+else
+	@echo "copying the image so the artifact stays as it was built..."
+	@cp --reflink=auto -f $(OUT)/image.img $(QEMU_IMAGE)
+	@IMAGE_FILE=$(QEMU_IMAGE) $(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
+endif
 
 # The fast loop: build the package, put usr/ on the device, restart, verify.
 # Minutes rather than an image. It pushes usr/ only and says what it skipped —

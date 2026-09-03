@@ -68,6 +68,10 @@ sync
 
 echo
 echo "$(basename "$OUT") carries $# secret(s)."
+echo
+echo "Boot it with 'make qemu', which copies it first: a VM writes to the"
+echo "image it boots, and an image that has been verified should be the same"
+echo "image that was verified."
 echo "It is now a secret itself. Flash it to one device; every device flashed"
 echo "from it shares them, and revoking means reflashing rather than deleting"
 echo "a file."
