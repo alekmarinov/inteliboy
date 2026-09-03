@@ -34,6 +34,20 @@ def S(group, name, says, **checks):
     return dict(group=group, name=name, says=says, **checks)
 
 
+#: A probe runs on the device after the utterances and its output is asserted.
+#: Some things are not sayable — what is on screen, who owns a directory, what
+#: a process runs as — and a plan that only listens can only test half of it.
+SCENE = (
+    "python3 -c \"import socket,json;"
+    "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);"
+    "s.connect('/run/avatari.sock');f=s.makefile('rwb',buffering=0);"
+    "f.write(b'{\\\"v\\\":1,\\\"op\\\":\\\"hello\\\",\\\"name\\\":\\\"soak\\\"}\\n');"
+    "f.readline();"
+    "f.write(b'{\\\"v\\\":1,\\\"op\\\":\\\"query\\\"}\\n');"
+    "d=json.loads(f.readline());"
+    "print(' '.join(o['id']+'@'+o['region'] for o in d.get('objects',[])) or 'EMPTY')\""
+)
+
 PLAN = [
     # --- what it knows about itself -------------------------------------
     S("self", "the time", ["what time is it"], intent="get_time"),
@@ -97,6 +111,54 @@ PLAN = [
     # --- jobs --------------------------------------------------------------
     S("jobs", "nothing running", ["what jobs are running"],
       intent="list_jobs", answer_has="Nothing"),
+
+    # --- the screen, asserted rather than eyeballed -------------------------
+    # A presentation template draws a *group* with children, so the id
+    # follows the template — brain/clock, brain/ip — and is not a fixed
+    # brain/answer. Counting "brain/" counts the children too, which is why
+    # the top-level count is its own check.
+    S("screen", "an answer is drawn", ["what time is it"],
+      after=SCENE, probe_has="brain/clock@stage"),
+    S("screen", "one answer at a time",
+      ["what time is it", "what is the date"],
+      after=SCENE, probe_top_once="brain/"),
+    S("screen", "a clock card leaves after its twelve seconds",
+      ["what time is it"], settle_s=16,
+      after=SCENE, probe_not_has="brain/clock"),
+    S("screen", "an ip card is still there when the clock would have gone",
+      ["what's my ip"], settle_s=16,
+      after=SCENE, probe_has="brain/ip@stage"),
+    # A slow question, because a local command answers in a second and the
+    # answer replaces the caption before anything could look at it.
+    S("screen", "the transcript is drawn while it thinks",
+      ["why is the sky blue"], escalates=True, probe_during=SCENE,
+      during_has="brain/heard@stage"),
+
+    # --- a service, born and removed ---------------------------------------
+    S("life", "a service is born",
+      ["keep the clock on screen", "yes", "yes"], escalates=True,
+      after="ls /var/lib/cogiti/services", probe_has="clock"),
+    S("life", "it runs as its own account", [],
+      after="ps -eo user,args= | grep 'main[.]py' | head -1",
+      probe_has="cogiti-"),
+    # The name is the model's choice — it produced "clock-display" once and
+    # "clock" another time — so the probes find the directory rather than
+    # assuming what it is called.
+    S("life", "its approval verifies", [],
+      after=("python3 -c \"import sys,glob;sys.path.insert(0,'/usr/lib/cogiti');"
+             "from cogiti import approval;"
+             "print([approval.verify(d) for d in "
+             "glob.glob('/var/lib/cogiti/services/*')])\""),
+      probe_has="(true"),
+    S("life", "it owns its own directory", [],
+      after="ls -ld /var/lib/cogiti/services/*",
+      probe_has="cogiti-service"),
+    S("life", "it is pinned to the periphery", [],
+      after=SCENE, probe_has="clock/main@periphery"),
+    S("life", "it is removed on request",
+      ["remove the clock", "yes"],
+      after="ls /var/lib/cogiti/services; echo ---; ls /var/lib/cogiti/removed",
+      probe_not_has="services: clock", probe_has="clock-"),
 ]
 
 
@@ -159,13 +221,33 @@ out = []
 for sc in scenarios:
     said = []
     for utterance in sc["says"]:
+        if sc.get("probe_during"):
+            with lock:
+                start = len(lines)
+            p.stdin.write(utterance + "\n"); p.stdin.flush()
+            time.sleep(1.2)              # mid-turn: the caption is up
+            r = subprocess.run(["sh", "-c", sc["probe_during"]],
+                               capture_output=True, text=True, timeout=20)
+            sc["_during"] = (r.stdout + r.stderr).strip()
+            time.sleep(12)
+            with lock:
+                said = [l for l in lines[start:] if l.strip()]
+            continue
         said = say(utterance, 40 if sc.get("escalates") else 14)
         if sc.get("settle"):
             # Wait for the detached answer to be spoken before asking the
             # next thing, which is what a person waiting for an answer does.
             said = said + wait_for_delivery(30)
+    if sc.get("settle_s"):
+        time.sleep(sc["settle_s"])
+    probe = ""
+    if sc.get("after"):
+        r = subprocess.run(["sh", "-c", sc["after"]], capture_output=True,
+                           text=True, timeout=30)
+        probe = (r.stdout + r.stderr).strip()
     out.append({"group": sc["group"], "name": sc["name"],
-                "says": sc["says"], "heard": said})
+                "says": sc["says"], "heard": said, "probe": probe,
+                "during": sc.get("_during", "")})
 
 p.stdin.close()
 time.sleep(1)
@@ -231,7 +313,8 @@ def report(plan, results):
             group = sc["group"]
             print("\n%s" % group)
         answer = " ".join(got["heard"])
-        why = check(sc, answer)
+        sc["_during"] = got.get("during", "")
+        why = check(sc, answer, got.get("probe", ""))
         if why:
             bad += 1
             print("  FAIL  %-34s %s" % (sc["name"], why))
@@ -243,9 +326,30 @@ def report(plan, results):
     return 1 if bad else 0
 
 
-def check(sc, answer):
+def check(sc, answer, probe=""):
     """What was wrong, in one sentence, or None."""
     low = answer.lower()
+    plow = probe.lower()
+    if sc.get("probe_has") and sc["probe_has"].lower() not in plow:
+        return "expected %r on the device, saw %r" % (sc["probe_has"],
+                                                      probe[:90])
+    if sc.get("probe_not_has") and sc["probe_not_has"].lower() in plow:
+        return "did not expect %r on the device" % sc["probe_not_has"]
+    if sc.get("probe_top_once"):
+        # Top level only: a template draws a group and its children share the
+        # prefix, so counting every id counts one answer several times.
+        tops = [w for w in probe.split()
+                if w.lower().startswith(sc["probe_top_once"].lower())
+                and "#" not in w]
+        if len(tops) != 1:
+            return "expected one answer on screen, found %d: %s" % (
+                len(tops), " ".join(tops) or "none")
+    if sc.get("during_has") and sc["during_has"].lower() not in (
+            sc.get("_during") or "").lower():
+        return "expected %r while listening, saw %r" % (
+            sc["during_has"], (sc.get("_during") or "")[:90])
+    if sc.get("says") == [] :
+        return None                      # a probe-only scenario
     if sc.get("silent") and answer.strip():
         return "expected silence, got an answer"
     if sc.get("answer_has") and sc["answer_has"].lower() not in low:
