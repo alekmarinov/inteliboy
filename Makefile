@@ -151,21 +151,26 @@ image:
 ## qemu: boot the image — on a copy, so verifying it does not change it
 ##
 ## A VM boots the image read-write, so every check writes to the artifact:
-## logs, a jobs database, ssh known-hosts, and — the one that made this
-## obvious — a service born during a test, which was then flashed to real
-## hardware along with the image. An image that has been verified must be the
-## same image that was verified.
+## logs, a jobs database, and — the one that made this obvious — a service
+## born during a test, which was then flashed to real hardware. An image that
+## has been verified must be the same image that was verified.
 ##
-## make qemu KEEP=1 to boot build/image.img itself, for when the point is to
-## change it.
-QEMU_IMAGE ?= $(OUT)/image-boot.img
+## The copy lives outside build/ and is deleted when qemu exits, because
+## build/ holds exactly one image.img and a second file beside it is the
+## confusion this whole arrangement is supposed to prevent. The first version
+## of this put the copy in build/ and reintroduced it.
+##
+## make qemu KEEP=1 boots build/image.img itself, for when changing it is the
+## point.
 qemu:
 ifdef KEEP
 	$(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
 else
-	@echo "copying the image so the artifact stays as it was built..."
-	@cp --reflink=auto -f $(OUT)/image.img $(QEMU_IMAGE)
-	@IMAGE_FILE=$(QEMU_IMAGE) $(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
+	@boot=$$(mktemp -u $${TMPDIR:-/tmp}/inteliboy-boot-XXXXXX.img); \
+	 trap 'rm -f "$$boot" "$$boot".nvram' EXIT INT TERM; \
+	 echo "booting a copy at $$boot; $(OUT)/image.img stays as it was built"; \
+	 cp --reflink=auto -f $(OUT)/image.img "$$boot" && \
+	 IMAGE_FILE="$$boot" $(MAKE) -C $(LFS) qemu DISTRO=$(DISTRO) OUT=$(OUT)
 endif
 
 # The fast loop: build the package, put usr/ on the device, restart, verify.
