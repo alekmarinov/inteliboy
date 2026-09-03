@@ -77,17 +77,93 @@ class TestPrompt(unittest.TestCase):
         self.assertEqual(client.calls[0]["messages"],
                          [{"role": "user", "content": "hello there"}])
 
-    def test_history_is_rendered_as_dialogue(self):
-        """session.context() gives {"recent": [{said, answered}]}. It has to
-        arrive as something a model reads as a conversation, not as JSON."""
+    def test_history_arrives_as_turns_not_as_a_briefing(self):
+        """It used to be one user message with the history rendered into
+        prose inside it, so the model had never *said* anything: its own
+        words came back laundered through a formatter, it could not see its
+        own earlier tool calls, and none of the prefix was cacheable."""
         client = StubClient(Response([answer_block(say="ok")]))
         run = {"prompt": {"text": "and the second one?", "context": {
             "recent": [{"said": "name a colour", "answered": "blue"}]}}}
         adapter.run_once(client, run, StubInbox())
-        content = client.calls[0]["messages"][0]["content"]
-        self.assertIn("name a colour", content)
-        self.assertIn("blue", content)
-        self.assertTrue(content.endswith("Now they say: and the second one?"))
+        self.assertEqual(client.calls[0]["messages"], [
+            {"role": "user", "content": "name a colour"},
+            {"role": "assistant", "content": "blue"},
+            {"role": "user", "content": "and the second one?"},
+        ])
+
+    def test_a_question_and_its_answer_take_the_right_roles(self):
+        """The device asked "Are you sure?" and was asked back, out loud,
+        "am I sure what?". The question is something *it* said and the reply
+        is something *they* said; no rendering into one user message says
+        so."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        run = {"prompt": {"text": "am i sure what?", "context": {"recent": [
+            {"said": "pin the clock on the screen"},
+            {"asked": "Keep it on the screen from now on?"},
+        ]}}}
+        adapter.run_once(client, run, StubInbox())
+        self.assertEqual(client.calls[0]["messages"], [
+            {"role": "user", "content": "pin the clock on the screen"},
+            {"role": "assistant",
+             "content": "Keep it on the screen from now on?"},
+            {"role": "user", "content": "am i sure what?"},
+        ])
+
+    def test_consecutive_turns_of_one_role_are_joined(self):
+        """Two interrupted utterances in a row are real, and the API wants
+        alternating roles. Joining keeps them; dropping would lose the half
+        of the conversation that was cut off."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        run = {"prompt": {"text": "well?", "context": {"recent": [
+            {"said": "i want the bitcoin", "interrupted": True},
+            {"said": "the price i mean", "interrupted": True},
+        ]}}}
+        adapter.run_once(client, run, StubInbox())
+        msgs = client.calls[0]["messages"]
+        # All three are things they said with nothing said back, so they are
+        # one message. Nothing is lost and the roles stay alternating.
+        self.assertEqual([m["role"] for m in msgs], ["user"])
+        for part in ("i want the bitcoin", "the price i mean", "cut short",
+                     "well?"):
+            self.assertIn(part, msgs[0]["content"])
+
+    def test_it_never_opens_with_the_assistant(self):
+        """History can begin with something the device said — an unprompted
+        delivery, or a question — and the API wants a user message first."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        run = {"prompt": {"text": "what?", "context": {"recent": [
+            {"answered": "About the timer — it has gone off.",
+             "unprompted": True}]}}}
+        adapter.run_once(client, run, StubInbox())
+        self.assertEqual(client.calls[0]["messages"],
+                         [{"role": "user", "content": "what?"}])
+
+    def test_the_situation_is_a_system_block_not_a_user_message(self):
+        """What somebody said and what happened to be true when they said it
+        are different things, and the model should not have to separate
+        them. It is also what lets the first block carry the cache."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        run = {"prompt": {"text": "is it late?", "context": {"situation": {
+            "time": "23:40", "date": "Thursday 03 September 2026",
+            "device": "inteliboy", "speaker": "unknown",
+            "pinned": ["the bitcoin price"], "since_last_s": 7200}}}}
+        adapter.run_once(client, run, StubInbox())
+        system = client.calls[0]["system"]
+        self.assertEqual(system[0]["cache_control"], {"type": "ephemeral"})
+        self.assertNotIn("cache_control", system[1])
+        block = system[1]["text"]
+        for fact in ("23:40", "inteliboy", "the bitcoin price", "2 hours",
+                     "new subject", "do not know who is speaking"):
+            self.assertIn(fact, block)
+        self.assertEqual(client.calls[0]["messages"],
+                         [{"role": "user", "content": "is it late?"}])
+
+    def test_a_named_speaker_is_named(self):
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "hi", "context": {
+            "situation": {"speaker": "alek"}}}}, StubInbox())
+        self.assertIn("talking to alek", client.calls[0]["system"][1]["text"])
 
     def test_thinking_is_adaptive_not_a_budget(self):
         """budget_tokens is rejected outright by this model family."""
@@ -132,7 +208,7 @@ class TestDump(unittest.TestCase):
         doc = self.only_file()
         self.assertEqual(doc["prompt"]["text"], "what time is it")
         self.assertEqual(doc["granted"], run["tools"])
-        self.assertIn("voice appliance", doc["system"])
+        self.assertIn("InteliBoy", json.dumps(doc["system"]))
         # The declarations as sent, not the grant that produced them: the
         # host list reaching the model is the thing worth reading back.
         self.assertEqual([t["name"] for t in doc["tools"]],

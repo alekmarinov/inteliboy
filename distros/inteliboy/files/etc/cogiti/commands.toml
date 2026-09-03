@@ -255,7 +255,15 @@ present  = "none"
 
 [remove_service]
 job      = "remove_service"
-confirm  = "Delete it for good?"
+# Not "Delete it for good?", which was asked three times in a row and
+# answered none of them. Two things wrong with it: "for good" is an idiom
+# that reads as "for a good reason" when a machine says it out loud, and it
+# is not even true — services.md §7 keeps thirty days of undo, so the one
+# thing the question asserted was the one thing that was false.
+#
+# "Permanently" was the obvious repair and is worse: it resolves to
+# pin_thing, because durative words are what that intent is made of.
+confirm  = "Remove it? I can put it back for a month."
 speak    = ""
 present  = "none"
 linger   = 12

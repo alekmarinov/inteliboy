@@ -80,7 +80,16 @@ ANSWER_TOOL = {
 }
 
 SYSTEM = (
-    "You are the reasoning behind a voice appliance. You are not talking to a "
+    "You are InteliBoy. You live in one room, on one machine, and you have a "
+    "face on a small screen. You are not a service somebody called: you are "
+    "the thing they are talking to, and the room they are in is the one you "
+    "are in.\n\n"
+    "Be direct and warm, and brief because you are heard rather than read. "
+    "Say what you know, and say plainly when you do not. Do not perform "
+    "enthusiasm, do not thank people for their questions, and do not offer "
+    "three options when one is right. A short true answer is the whole job."
+    "\n\n"
+    "You are not talking to a "
     "terminal: what you say is spoken aloud by a speech engine and, sometimes, "
     "shown on a small screen.\n\n"
     "Finish by calling the `answer` tool. Never write the answer as ordinary "
@@ -363,28 +372,114 @@ def result_from(answer_input, did_extra):
     return out
 
 
-def transcript(t):
-    """One earlier exchange, in a shape that says who did what.
+def conversation(recent, now):
+    """The exchanges as a real message array, ending with what was just said.
 
-    Five kinds reach a person and all five are rendered, because the gap
-    between what they witnessed and what this reads is exactly where a reply
-    stops making sense. A question the device put and the answer to it are
-    two of them: without those, "am i sure what?" arrives with nothing to be
-    unsure about, which is a real sentence a real person said to it.
+    This used to be one user message with the history rendered into prose
+    inside it — "Earlier in this conversation: they said X, you said Y" — and
+    four things were wrong with that at once. The model had never *said*
+    anything, so its own words came back laundered through a formatter and
+    it could not build on its own phrasing. It could not see its own earlier
+    tool calls, so a follow-up started from nothing. None of the request was
+    cacheable, so every turn paid full latency on a prefix that had not
+    changed. And a briefing document is not a conversation, which is roughly
+    what it sounded like.
+
+    Five kinds of exchange reach a person and each maps to a role. A question
+    the device put and an answer delivered late are both things it said; an
+    answer to a question and an interrupted utterance are both things they
+    said.
     """
-    if t.get("asked"):
-        return "  you asked:  %s" % t["asked"]
-    if t.get("unprompted"):
-        return "  you said, unprompted: %s" % t.get("answered", "")
-    said = t.get("said", "")
-    if t.get("answering"):
-        return "  they answered: %s" % said
-    if t.get("interrupted"):
-        return "  they said: %s   (cut short — you never replied)" % said
-    line = "  they said: %s" % said
-    if t.get("answered"):
-        line += "\n  you said:  %s" % t["answered"]
-    return line
+    out = []
+    for t in recent:
+        if t.get("asked"):
+            out.append(("assistant", t["asked"]))
+            continue
+        if t.get("unprompted"):
+            out.append(("assistant", t.get("answered", "")))
+            continue
+        said = t.get("said", "")
+        if t.get("interrupted"):
+            # The absence of a reply would say this on its own, until the
+            # merge below folds it into the neighbouring turn and it stops
+            # being visible at all.
+            said += "  [cut short — you never replied]"
+        if said:
+            out.append(("user", said))
+        if t.get("answered"):
+            out.append(("assistant", t["answered"]))
+    out.append(("user", now))
+
+    # The API wants alternating roles and a user message first. Consecutive
+    # same-role turns are real — two interrupted utterances in a row, or a
+    # question straight after an unprompted remark — so they are joined
+    # rather than dropped.
+    while out and out[0][0] != "user":
+        out.pop(0)
+    messages = []
+    for role, text in out:
+        if not (text or "").strip():
+            continue
+        if messages and messages[-1]["role"] == role:
+            messages[-1]["content"] += "\n" + text
+        else:
+            messages.append({"role": role, "content": text})
+    return messages or [{"role": "user", "content": now}]
+
+
+def preamble(situation):
+    """The system prompt, in two blocks, split where the caching is.
+
+    The first block is the same on every turn of every conversation, so it
+    carries the cache breakpoint: the persona, the rules, and the tool
+    guidance are a large stable prefix and there is no reason to pay for
+    them twice.
+
+    The second is where the device is standing right now, and changes every
+    turn. It is here rather than glued onto the user's words because what
+    somebody said and what happened to be true when they said it are
+    different things, and the model should not have to separate them.
+    """
+    blocks = [{"type": "text", "text": SYSTEM,
+               "cache_control": {"type": "ephemeral"}}]
+    if not situation:
+        return blocks
+
+    lines = []
+    if situation.get("device"):
+        lines.append("You are running on %s." % situation["device"])
+    when = " ".join(x for x in (situation.get("time"), situation.get("date"))
+                    if x)
+    if when:
+        lines.append("It is %s, where the device is." % when)
+    speaker = situation.get("speaker")
+    if speaker and speaker != "unknown":
+        lines.append("You are talking to %s." % speaker)
+    elif speaker:
+        # Said, rather than left out. A model not told that it does not know
+        # who this is will cheerfully assume, and the assumption is invisible.
+        lines.append("You do not know who is speaking. Do not guess, and do "
+                     "not use a name you have not been given.")
+    pinned = situation.get("pinned")
+    if pinned:
+        lines.append("On the screen right now: %s." % ", ".join(pinned))
+    elif pinned is not None:
+        lines.append("Nothing is pinned on the screen.")
+    gap = situation.get("since_last_s")
+    if gap is not None:
+        lines.append("It is %s since the last thing they said, so %s."
+                     % (_gap(gap),
+                        "this is probably a follow-up" if gap < 90
+                        else "this may be a new subject"))
+    return blocks + [{"type": "text", "text": "\n".join(lines)}]
+
+
+def _gap(seconds):
+    if seconds < 90:
+        return "%d seconds" % seconds
+    if seconds < 5400:
+        return "%d minutes" % (seconds // 60)
+    return "%d hours" % (seconds // 3600)
 
 
 # ------------------------------------------------------------------- main --
@@ -395,14 +490,10 @@ def run_once(client, run, inbox, dump=None):
     tools = declared_tools(granted)
     prompt = run.get("prompt") or {}
 
-    content = prompt.get("text", "")
     context = prompt.get("context") or {}
-    if context.get("recent"):
-        content = "\n".join(["Earlier in this conversation:"]
-                            + [transcript(t) for t in context["recent"]]
-                            ) + "\n\nNow they say: " + content
-
-    messages = [{"role": "user", "content": content}]
+    messages = conversation(context.get("recent") or [],
+                            prompt.get("text", ""))
+    system = preamble(context.get("situation") or {})
     did = []
 
     def done(result):
@@ -422,7 +513,7 @@ def run_once(client, run, inbox, dump=None):
 
         # Built once and both sent and recorded, so the dump is the call
         # rather than a description of it — a replay is create(**request).
-        request = dict(model=MODEL, max_tokens=MAX_TOKENS, system=SYSTEM,
+        request = dict(model=MODEL, max_tokens=MAX_TOKENS, system=system,
                        tools=tools, messages=messages, **kwargs)
         if not dump.doc or not dump.doc.get("system"):
             dump.opening(run, request)
