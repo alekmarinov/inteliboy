@@ -155,6 +155,18 @@ def declared_tools(granted):
     """
     tools = [ANSWER_TOOL]
     for t in granted:
+        # A grant that brings its own schema is declared as it stands. This is
+        # how cogiti adds a tool without this file learning its name: it was
+        # previously a chain of `if name == ...`, which meant every new tool
+        # was a change in two repositories and a version bump between them.
+        if t.get("input_schema"):
+            tools.append({
+                "name": t["name"],
+                "description": t.get("description", ""),
+                "strict": True,
+                "input_schema": t["input_schema"],
+            })
+            continue
         if t["name"] == "http":
             tools.append({
                 "name": "http",
