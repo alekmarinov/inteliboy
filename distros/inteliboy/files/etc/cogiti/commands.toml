@@ -260,3 +260,47 @@ job      = "pin_thing"
 speak    = ""
 present  = "none"
 linger   = 12
+
+# ------------------------------------ what it had been guessing at --------
+#
+# Each of these resolved and had no command, so it escalated and a language
+# model answered — which for a live number is not an approximation but an
+# invention. "What's the bitcoin price" came back with a confident figure out
+# of training data and nothing to say it was a guess.
+
+[get_price]
+provider   = "price.spot"
+speak      = "{symbol} is {amount_spoken}."
+present    = "{symbol}  {amount_shown}"
+timeout_ms = 7000
+linger     = 20
+args       = { symbol = { slot = "symbol", required = true } }
+
+[get_weather]
+provider   = "weather.now"
+speak      = "It's {temp_spoken} and {sky} in {place}."
+present    = "{shown}"
+timeout_ms = 9000
+linger     = 20
+# Where the device is, unless the sentence named somewhere else. The resolver
+# fills this from `context_default: device.location`.
+args       = { location = { slot = "location", default = "Sofia" } }
+
+[get_battery]
+provider   = "device.battery"
+speak      = "The battery is at {percent_spoken}."
+present    = "none"
+linger     = 10
+
+# Both of these need the session or the pending list, which a provider in a
+# worker thread cannot see — hence `job`, which is a lie about their lifetime
+# told for a mechanical reason.
+[repeat]
+job        = "repeat"
+speak      = ""
+present    = "none"
+
+[stop]
+job        = "stop"
+speak      = ""
+present    = "none"
