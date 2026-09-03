@@ -159,6 +159,51 @@ PLAN = [
       ["remove the clock", "yes"],
       after="ls /var/lib/cogiti/services; echo ---; ls /var/lib/cogiti/removed",
       probe_not_has="services: clock", probe_has="clock-"),
+
+    # --- what one live evening actually broke ---------------------------
+    #
+    # Somebody stood in front of it and tried to pin a price. Five sentences
+    # in a row went to `list_services` — "pin the coke on the screen" was
+    # answered with a list of what was already pinned — and the one that got
+    # through asked "Are you sure?", to which they said, out loud, "am I sure
+    # what?". Every line below is one of those sentences.
+    #
+    # One utterance each, deliberately: the runner keeps only the last
+    # answer, so a scenario that says two things can assert nothing about
+    # the first — and here the first is the whole point. Left unanswered,
+    # each confirm expires into cancelled, which is what a confirm does.
+    #
+    # Each says "no" afterwards and asserts on the whole exchange. Leaving the
+    # confirm hanging works too and reads shorter, but it expires twelve
+    # seconds later — inside the next scenario's window, where a stray
+    # "Cancelled." failed a test that had nothing to do with it.
+    S("pinning", "the verb beats the tail", ["pin the coke on the screen", "no"],
+      # `list_services` owns "what is on the screen" and this ends the same
+      # way. What must not come back is a list.
+      all_answers=True, answer_has="from now on",
+      not_answer_has="nothing is pinned"),
+    S("pinning", "a bare one still pins", ["pin it on the screen", "no"],
+      all_answers=True, answer_has="from now on",
+      not_answer_has="nothing is pinned"),
+    S("pinning", "the confirm names the thing",
+      ["pin the clock on the screen", "no"],
+      # "Are you sure?" is not a question anybody can answer. This is.
+      all_answers=True, answer_has="Keep it on the screen from now on?"),
+    S("pinning", "asking what is up is still asking",
+      ["what have you got pinned"], not_answer_has="from now on"),
+    S("pinning", "and so is the other phrasing",
+      ["what is on the screen"], not_answer_has="from now on"),
+
+    # The model, given a sentence the resolver does not match, has to reach
+    # for the device rather than describe it — and for the things it may not
+    # start itself, say what to ask for rather than deny they exist.
+    S("pinning", "it knows pinning exists",
+      ["is there some way to get a thing to stay up on that display forever"],
+      escalates=True, settle=True, answer_has_any=["pin", "keep"],
+      not_answer_has="can't"),
+    S("jobs", "a reporting job is reachable by the model",
+      ["remind me what you have got running for me at the moment"],
+      escalates=True, settle=True, not_answer_has="I don't have"),
 ]
 
 
@@ -219,7 +264,7 @@ def wait_for_delivery(seconds):
 
 out = []
 for sc in scenarios:
-    said = []
+    said, every = [], []
     for utterance in sc["says"]:
         if sc.get("probe_during"):
             with lock:
@@ -238,6 +283,15 @@ for sc in scenarios:
             # Wait for the detached answer to be spoken before asking the
             # next thing, which is what a person waiting for an answer does.
             said = said + wait_for_delivery(30)
+        every += said
+    if sc.get("all_answers"):
+        # Every answer, not the last one. Off by default and deliberately so:
+        # `a new topic is not contaminated` says two things and its whole
+        # claim is about the second, so folding the first in would assert the
+        # opposite of what it means. But a scenario whose point is the
+        # *question* — a confirm, which is answered by the utterance after it
+        # — can assert nothing without this.
+        said = every
     if sc.get("settle_s"):
         time.sleep(sc["settle_s"])
     probe = ""

@@ -202,6 +202,30 @@ def result_from(answer_input, did_extra):
     return out
 
 
+def transcript(t):
+    """One earlier exchange, in a shape that says who did what.
+
+    Five kinds reach a person and all five are rendered, because the gap
+    between what they witnessed and what this reads is exactly where a reply
+    stops making sense. A question the device put and the answer to it are
+    two of them: without those, "am i sure what?" arrives with nothing to be
+    unsure about, which is a real sentence a real person said to it.
+    """
+    if t.get("asked"):
+        return "  you asked:  %s" % t["asked"]
+    if t.get("unprompted"):
+        return "  you said, unprompted: %s" % t.get("answered", "")
+    said = t.get("said", "")
+    if t.get("answering"):
+        return "  they answered: %s" % said
+    if t.get("interrupted"):
+        return "  they said: %s   (cut short — you never replied)" % said
+    line = "  they said: %s" % said
+    if t.get("answered"):
+        line += "\n  you said:  %s" % t["answered"]
+    return line
+
+
 # ------------------------------------------------------------------- main --
 
 def run_once(client, run, inbox):
@@ -212,12 +236,9 @@ def run_once(client, run, inbox):
     content = prompt.get("text", "")
     context = prompt.get("context") or {}
     if context.get("recent"):
-        lines = ["Earlier in this conversation:"]
-        for t in context["recent"]:
-            lines.append("  they said: %s" % t.get("said", ""))
-            if t.get("answered"):
-                lines.append("  you said:  %s" % t["answered"])
-        content = "\n".join(lines) + "\n\nNow they say: " + content
+        content = "\n".join(["Earlier in this conversation:"]
+                            + [transcript(t) for t in context["recent"]]
+                            ) + "\n\nNow they say: " + content
 
     messages = [{"role": "user", "content": content}]
     did = []

@@ -216,6 +216,8 @@ linger   = 0
 
 [cancel_job]
 job      = "cancel_job"
+# Stopping someone's work is theirs to ask for.
+agent    = "never"
 speak    = ""
 present  = "none"
 
@@ -239,11 +241,15 @@ linger   = 12
 
 [pause_service]
 job      = "pause_service"
+confirm  = "Stop showing it?"
+agent    = "never"
 speak    = ""
 present  = "none"
 
 [remove_service]
 job      = "remove_service"
+confirm  = "Delete it for good?"
+agent    = "never"
 speak    = ""
 present  = "none"
 linger   = 12
@@ -257,6 +263,16 @@ linger   = 12
 # sentence it will answer to.
 [pin_thing]
 job      = "pin_thing"
+# Not "Are you sure?" — said aloud, that answers nothing. The device asked it
+# after "pin the clock on the screen" and was asked back, out loud, "am I sure
+# what?". A confirmation has to name the thing it is confirming, and this one
+# names the only question actually being put: `pin_thing.yaml` says it is
+# "did you mean from now on, or just now?"
+confirm  = "Keep it on the screen from now on?"
+# Saying yes writes a service and asks a second time. Three minutes of
+# authoring is not something to start from inside a tool call the model is
+# waiting on, and the second question is for a person.
+agent    = "never"
 speak    = ""
 present  = "none"
 linger   = 12
@@ -297,10 +313,14 @@ linger     = 10
 # told for a mechanical reason.
 [repeat]
 job        = "repeat"
+# About the conversation, not the world.
+agent      = "never"
 speak      = ""
 present    = "none"
 
 [stop]
 job        = "stop"
+# About the conversation, not the world.
+agent      = "never"
 speak      = ""
 present    = "none"
