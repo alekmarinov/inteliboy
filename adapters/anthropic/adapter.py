@@ -314,10 +314,34 @@ def declared_tools(granted):
         if t["name"] == "http":
             tools.append({
                 "name": "http",
-                "description": "Fetch a URL. Only these hosts are reachable: "
-                               + (", ".join(t.get("hosts", [])) or "none")
-                               + ". Redirects are not followed; if you get a "
-                               "3xx, ask for the new URL explicitly.",
+                # Everything here is a fact about `cogiti/tools/http_fetch.py`,
+                # and the point of saying it is that the model stops guessing.
+                # The old wording gave the host list and one sentence about
+                # redirects, so nothing said it was GET-only, nothing said a
+                # 404 comes back as a readable result rather than an error,
+                # and nothing said the body is capped — leaving the model to
+                # infer three things it had no way to know.
+                "description":
+                    "Fetch a URL over HTTPS and get the response back. GET "
+                    "only: there is no way to send a method, headers, or a "
+                    "body, so this reads and never writes.\n\n"
+                    "Reachable hosts, matched exactly and with no wildcards: "
+                    + (", ".join(t.get("hosts", [])) or "none")
+                    + ". A URL on any other host, or on plain http, is "
+                    "refused before it is sent — say so rather than trying a "
+                    "variation.\n\n"
+                    "You get back `status`, lowercased `headers`, and `body` "
+                    "as text. A 404 or a 500 is a result, not a failure: it "
+                    "arrives with its status and its body, and is usually "
+                    "worth reading. `ok` is false for those, and also when "
+                    "the host could not be reached at all — `error_kind` "
+                    "tells those apart.\n\n"
+                    "The body is capped at 1 MB, with `truncated` true when "
+                    "it was cut. The request times out after 20 seconds. "
+                    "Redirects are not followed: a 3xx comes back with "
+                    "`redirected_to`, and following it means asking for that "
+                    "URL yourself, which only works if it is on a reachable "
+                    "host.",
                 "strict": True,
                 "input_schema": {
                     "type": "object",

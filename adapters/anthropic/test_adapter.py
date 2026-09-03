@@ -213,6 +213,17 @@ class TestTools(unittest.TestCase):
         names = [t["name"] for t in adapter.declared_tools([])]
         self.assertEqual(names, ["answer"])
 
+    def test_http_says_what_it_actually_does(self):
+        """Each of these was a thing the model had no way to know and had to
+        infer: that it cannot POST, that a 404 is a readable result rather
+        than a failure, and that the body is capped."""
+        d = [t for t in adapter.declared_tools(
+            [{"name": "http", "hosts": ["api.coinbase.com"]}])
+            if t["name"] == "http"][0]["description"]
+        for fact in ("GET only", "api.coinbase.com", "404", "1 MB",
+                     "20 seconds", "redirected_to", "error_kind"):
+            self.assertIn(fact, d)
+
     def test_granted_http_carries_its_host_list(self):
         tools = adapter.declared_tools([{"name": "http", "hosts": ["example.com"]}])
         http = [t for t in tools if t["name"] == "http"][0]

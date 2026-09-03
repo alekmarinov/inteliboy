@@ -245,7 +245,11 @@ linger   = 12
 
 [pause_service]
 job      = "pause_service"
-confirm  = "Stop showing it?"
+# Not "Stop showing it?" — those exact words resolve to `stop`, so a person
+# echoing the question back at the device got barge-in instead of a pause.
+# A confirm wording is a sentence somebody will repeat, and it has to be one
+# the resolver does not hear as a different command.
+confirm  = "Pause it, and keep it for later?"
 speak    = ""
 present  = "none"
 
