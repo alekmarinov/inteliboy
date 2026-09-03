@@ -247,3 +247,16 @@ job      = "remove_service"
 speak    = ""
 present  = "none"
 linger   = 12
+
+# "Keep the eth price on screen." The device writes a service, proves it
+# runs, and asks before installing it. services.md §4.
+#
+# reflexi has this as `confirm`, so the user has already said yes once — that
+# first question is only "did you mean from now on?". The second one, the
+# review gate, is asked from inside the job and names what it reads and every
+# sentence it will answer to.
+[pin_thing]
+job      = "pin_thing"
+speak    = ""
+present  = "none"
+linger   = 12

@@ -1,0 +1,15 @@
+# An address is read off a screen and typed somewhere else, so it is shown as
+# digits — the spoken form says "dot" and nobody types that.
+id     = "brain/ip"
+kind   = "group"
+region = "stage"
+
+  [[children]]
+  kind  = "text"
+  style = "headline"
+  text  = "{ip}"
+
+  [[children]]
+  kind  = "text"
+  style = "caption"
+  text  = "ssh root@{ip}"
