@@ -34,6 +34,34 @@ SOURCES="$DISTRO_DIR/sources"
 # docs/python-on-the-appliance.md, which is the trap that costs a day.
 COMPONENTS="avatari reflexi cogiti audi"
 
+# Third-party source this distro needs and lfs's BLFS lists do not carry.
+# Downloaded once against a pinned checksum and kept; a tarball is not
+# committed, for the same reason no binary is.
+#
+# One line per source: <basename>|<url>|<sha256>. The checksum is the whole
+# point — it is what makes a download reproducible and what turns a mirror
+# serving something else into a build failure rather than a surprise.
+VENDORED="speexdsp-1.2.1.tar.gz|https://downloads.xiph.org/releases/speex/speexdsp-1.2.1.tar.gz|8c777343e4a6399569c72abc38a95b24db56882c83dbdb6c6424a5f4aeb54d3d"
+
+for v in $VENDORED; do
+    name=${v%%|*}; rest=${v#*|}; url=${rest%%|*}; want=${rest##*|}
+    dest="$SOURCES/$name"
+    if [ -e "$dest" ] && [ "$(sha256sum "$dest" | cut -d" " -f1)" = "$want" ]; then
+        echo "vendored $name  (already here, checksum matches)"
+        continue
+    fi
+    echo "vendored $name  (fetching)"
+    curl -fsSL "$url" -o "$dest.part" || {
+        echo "  could not fetch $url"; rm -f "$dest.part"; exit 1; }
+    got=$(sha256sum "$dest.part" | cut -d" " -f1)
+    [ "$got" = "$want" ] || {
+        echo "  $name is not what we pinned:"
+        echo "    expected $want"
+        echo "    got      $got"
+        rm -f "$dest.part"; exit 1; }
+    mv "$dest.part" "$dest"
+done
+
 # What this run actually stages, recorded as it happens.
 #
 # `make lock` used to read each repository's HEAD at lock time, and nothing
@@ -98,6 +126,11 @@ done
 
 # Anything for another version is stale: the recipes glob '<name>-[0-9]*' and
 # would be handed two archives and extract from the wrong one.
+#
+# Only *.tar.xz, which is what our components produce. Vendored third-party
+# source arrives as whatever upstream ships — .tar.gz for speexdsp — and must
+# not be swept: it is pinned by checksum, not by a version we control. Widen
+# this glob and the next build deletes it and downloads it again.
 for t in "$SOURCES"/*.tar.xz; do
     [ -e "$t" ] || continue
     keep=no
@@ -168,7 +201,9 @@ for old in "$SOURCES"/inteliboy-adapters-*.tar.xz; do
     esac
 done
 
-( cd "$SOURCES" && md5sum *.tar.xz > local.md5sums )
+# Both extensions: a recipe verifies whatever it is about to extract, and the
+# vendored source is not a .tar.xz.
+( cd "$SOURCES" && md5sum *.tar.xz *.tar.gz 2>/dev/null > local.md5sums )
 echo
 echo "$SOURCES/local.md5sums:"
 sed 's/^/    /' "$SOURCES/local.md5sums"

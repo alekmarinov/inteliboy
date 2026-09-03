@@ -11,7 +11,7 @@ echo "Required disk space: 600 MB"
 # farm.
 #
 # BUILD_REQUIRES: 8.51-make-python
-# RUNTIME_REQUIRES: 8.51-make-python 42-make-alsa-utils 8.5-make-glibc 8.29-make-gcc
+# RUNTIME_REQUIRES: 8.51-make-python 42-make-alsa-utils 8.5-make-glibc 8.29-make-gcc speexdsp
 #
 # NOTE gcc is a runtime dependency here for libstdc++: onnxruntime and
 # sherpa-onnx are C++ and link it, and nothing else in this image would have
