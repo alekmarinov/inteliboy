@@ -50,6 +50,15 @@ have "pin_thing in the table"                /etc/cogiti/commands.toml "pin_thin
 # The account is created at boot rather than by a package — see the init
 # script for why — so what is checked here is that the boot will do it.
 have "the service account is created at boot" /etc/rc.d/init.d/cogiti "cogiti-service"
+have "the undo bin is bounded"               /usr/lib/cogiti/cogiti/services.py "KEEP_REMOVED_DAYS"
+have "a question is not interrupted by it"   /usr/lib/cogiti/cogiti/session.py "awaiting_answer"
+
+echo "== the brain can see the screen"
+if sudo grep -q "screenshot" "$MNT/usr/bin/avatari" 2>/dev/null; then
+    printf '  ok    the renderer answers screenshot\n'; ok=$((ok+1))
+else
+    printf '  MISS  no screenshot op in the renderer\n'; bad=$((bad+1))
+fi
 
 echo "== no services shipped (they are born on request now)"
 n=$(sudo ls "$MNT/var/lib/cogiti/services" 2>/dev/null | wc -l)
