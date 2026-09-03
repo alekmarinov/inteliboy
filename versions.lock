@@ -8,24 +8,9 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-03T16:38:37Z
+# Generated 2026-09-03T19:32:55Z
 avatari    = { version = "0.3.0", commit = "6e5fb8bb5e014ba6c0c5b62040e8ed92099a53d2" }
-reflexi    = { version = "0.5.0", commit = "9fe453f2a55eb07f3fde68af439201708c4e3c32" }
-cogiti     = { version = "0.12.0", commit = "f88018952db2a00d39bfc9c105920248a893a0f9" }
+reflexi    = { version = "0.6.0", commit = "90dd29655299cf6dafce1c27e3472e5ed42e2fad" }
+cogiti     = { version = "0.16.0", commit = "9d437f327256366b881948769f0b2439a999dbbc" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.3.0", commit = "37e18c80292ad6137a1f20785afc7f3805c59f4d" }
-
-# Proven: InteliBoy 0.3.0, built and booted 2026-09-03. 29 of 29 on the image,
-# 13 of 14 on the device — the miss is a capture device, which a virtual
-# machine does not have.
-#
-# The new thing, and the reason this release exists: the running appliance was
-# asked for a picture of its own screen and produced one. It showed the
-# resting face, centred, with nothing pinned — which is exactly what a fresh
-# image should show now that no services ship. Until this build, that sentence
-# could only be written by somebody standing in front of the device.
-#
-# It was also the first image booted on a *copy*: a VM writes to what it
-# boots, so 0.2.2 was flashed carrying a clock service born during its own
-# verification. An image that has been verified must be the same image that
-# was verified.
+inteliboy  = { version = "0.4.0", commit = "0817b4a31cf7c984c2a4b6755a69525bc1df2014" }
