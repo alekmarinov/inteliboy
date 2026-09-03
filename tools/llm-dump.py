@@ -45,8 +45,19 @@ def summarise(d, full=False):
     print("model    %s" % d.get("model"))
     print("started  %s" % d.get("started"))
     print("prompt   %s" % json.dumps(d.get("prompt"))[:400])
-    print("tools    %s" % ", ".join(t.get("name", "?")
-                                    for t in d.get("tools") or []))
+    # Names alone were not enough and hid the thing worth reading: the whole
+    # question of what the model could reach lives inside the `device` tool's
+    # enum, and printing "device" said nothing about whether it held twenty
+    # commands or thirty-three.
+    for t in d.get("tools") or []:
+        enum = ((t.get("input_schema") or {}).get("properties") or {}) \
+            .get("command", {}).get("enum")
+        print("tool     %s%s" % (t.get("name"),
+                                 " — %d command(s)" % len(enum) if enum else ""))
+        if enum:
+            print("         %s" % ", ".join(enum))
+        if full and t.get("description"):
+            print("         %s" % t["description"])
     if full:
         print("\n--- system ---\n%s" % d.get("system"))
     for i, s in enumerate(d.get("steps") or []):

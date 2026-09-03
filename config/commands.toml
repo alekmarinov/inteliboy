@@ -100,6 +100,12 @@ timeout_ms = 1000
 # not let it expire into yes, and will not let an agent answer it. The field
 # below is only the wording.
 #
+# An agent may still *ask for* one. It may call anything the table holds, and
+# a command with wording here puts that question to the person before it
+# happens — same words, same turn. Withholding these from the model instead
+# encoded consent as absence: it could not ask for the thing, so nobody was
+# asked either, and what came back was a sentence about how to phrase it.
+#
 # The command is deliberately NOT `poweroff` on a development workstation.
 # Point it at the real thing in the appliance's own table.
 
@@ -216,8 +222,6 @@ linger   = 0
 
 [cancel_job]
 job      = "cancel_job"
-# Stopping someone's work is theirs to ask for.
-agent    = "never"
 speak    = ""
 present  = "none"
 
@@ -242,14 +246,12 @@ linger   = 12
 [pause_service]
 job      = "pause_service"
 confirm  = "Stop showing it?"
-agent    = "never"
 speak    = ""
 present  = "none"
 
 [remove_service]
 job      = "remove_service"
 confirm  = "Delete it for good?"
-agent    = "never"
 speak    = ""
 present  = "none"
 linger   = 12
@@ -269,10 +271,6 @@ job      = "pin_thing"
 # names the only question actually being put: `pin_thing.yaml` says it is
 # "did you mean from now on, or just now?"
 confirm  = "Keep it on the screen from now on?"
-# Saying yes writes a service and asks a second time. Three minutes of
-# authoring is not something to start from inside a tool call the model is
-# waiting on, and the second question is for a person.
-agent    = "never"
 speak    = ""
 present  = "none"
 linger   = 12
@@ -313,14 +311,10 @@ linger     = 10
 # told for a mechanical reason.
 [repeat]
 job        = "repeat"
-# About the conversation, not the world.
-agent      = "never"
 speak      = ""
 present    = "none"
 
 [stop]
 job        = "stop"
-# About the conversation, not the world.
-agent      = "never"
 speak      = ""
 present    = "none"
