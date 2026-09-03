@@ -1,7 +1,7 @@
 # 2026-09-02-stage-5a-services — a standing duty, not a conversation
 
-Status: **draft — not approved. Nothing implemented.**
-Approved by: —
+Status: **approved** — four questions answered, 2026-09-02.
+Approved by: the user, 2026-09-02
 
 ## The ask
 
@@ -44,7 +44,22 @@ pins nothing.
 - **needs-attention** — stopped after a crash loop, and the device says so next
   time it is spoken to. Not a state a service sets.
 
-## The four questions
+## The four decisions, as taken
+
+1. **The broker socket is built now.** A service asks cogiti to fetch and
+   cogiti checks the manifest. An allow-list nobody enforces is documentation,
+   and 5b installs agent-written code against exactly this manifest.
+2. **One shared `cogiti-service` uid.** Cheap, and it stops a service reading
+   `/var/lib/cogiti/secrets`, which today it simply could. Per-service uids
+   later.
+3. **All four limits, with the CPU rate sampled by the supervisor.** The harder
+   option, deliberately: `RLIMIT_CPU` is a lifetime total and the manifest says
+   per minute, so using it would be a setting that quietly means something else
+   and kills a long-running service after some hours.
+4. **`[phrases]` is validated and unused.** The format stays stable across 5a
+   and 5c, and nothing is invented twice.
+
+## The questions, as asked
 
 **1. How does a service reach the network?** §1 says "only the hosts it
 declared, enforced by the egress broker", and the broker lives in cogiti. A
@@ -146,3 +161,38 @@ proves it: they survive a reboot on hardware.
 
 Branch `stage-5a-services` in cogiti and reflexi; delete both. No image is
 built from this until it works, so `versions.lock` stays at InteliBoy 0.1.0.
+
+
+## What landed
+
+cogiti 0.5.0, reflexi 0.4.0, two services here. On the appliance:
+
+- both start at boot, both connect to the renderer, and `services: clock,
+  weather` appears in the log;
+- the broker **refuses the clock the exact URL it grants the weather**, the
+  only difference being one line of manifest — which is the allow-list being
+  enforcement rather than documentation;
+- a renderer restart is noticed within a second by both, and both re-declare.
+
+Three bugs, none of which the tests could have found:
+
+1. **The SDK was not importable by a service.** cogiti's launcher puts itself
+   on `sys.path`, not in `PYTHONPATH`, so a child inherited nothing. Both
+   services died on their first line, three times each, and were stopped by
+   the crash-loop rule — working perfectly, and saying nothing about why.
+2. **Because their stderr was a pipe nobody read.** §9's failure mode wearing
+   a hat: the supervisor captured the reason and showed no one.
+3. **The SDK had no keepalive.** A socket's death is discovered on a write, so
+   the weather — which writes every fifteen minutes — did not reconnect at
+   all after a renderer restart, while the clock came back in ten seconds.
+   This is the exact bug `avatari_feed.py` was written about, reimplemented
+   by someone who had read the file.
+
+## Still open in 5a
+
+- **The services are not in an image.** They live in `/var/lib/cogiti/services`
+  on the device, deployed by hand; the distro does not package them yet.
+- **The shared `cogiti-service` uid is not created.** Services run as root, so
+  the isolation decided in question 2 is not yet real.
+- **`approved` and `source_sha` are parsed and unenforced.** They belong to
+  5b's review gate, which is what 5a exists to make possible.

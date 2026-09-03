@@ -218,3 +218,32 @@ linger   = 0
 job      = "cancel_job"
 speak    = ""
 present  = "none"
+
+# ------------------------------------------------------------ services --
+#
+# A standing duty, as opposed to a job, which ends. Stage 5a;
+# docs/services.md §7. Both of the acting ones are `confirm` in reflexi,
+# so the user has already been asked by the time these run.
+
+[list_services]
+job      = "list_services"
+speak    = ""
+present  = "none"
+linger   = 0
+
+[service_status]
+job      = "service_status"
+speak    = ""
+present  = "none"
+linger   = 12
+
+[pause_service]
+job      = "pause_service"
+speak    = ""
+present  = "none"
+
+[remove_service]
+job      = "remove_service"
+speak    = ""
+present  = "none"
+linger   = 12
