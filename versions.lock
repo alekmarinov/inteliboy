@@ -8,35 +8,24 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-03T05:12:04Z
-avatari    = { version = "0.2.0", commit = "b22fbf05e806a3c7da1eeb2dfcf9df9795ae752b" }
+# Generated 2026-09-03T16:38:37Z
+avatari    = { version = "0.3.0", commit = "6e5fb8bb5e014ba6c0c5b62040e8ed92099a53d2" }
 reflexi    = { version = "0.5.0", commit = "9fe453f2a55eb07f3fde68af439201708c4e3c32" }
-cogiti     = { version = "0.11.1", commit = "9c40ac61a4d80300aa2e48ccfdd3f5a0f12e93ad" }
+cogiti     = { version = "0.12.0", commit = "f88018952db2a00d39bfc9c105920248a893a0f9" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.2.1", commit = "91b368013cc98fe6a37d4a6edbdabd587126488b" }
+inteliboy  = { version = "0.3.0", commit = "37e18c80292ad6137a1f20785afc7f3805c59f4d" }
 
-# Proven: InteliBoy 0.2.2, built 2026-09-03 from exactly the commits above and
-# booted under qemu. It identified itself as 0.2.2, created the cogiti-service
-# account at boot, started with **no services installed** — they are born on
-# request now — and passed tools/verify-device.sh 13 of 14. The miss is "there
-# is a capture device", which a virtual machine does not have.
+# Proven: InteliBoy 0.3.0, built and booted 2026-09-03. 29 of 29 on the image,
+# 13 of 14 on the device — the miss is a capture device, which a virtual
+# machine does not have.
 #
-# tools/verify-image.sh found all 26 things this release was about.
+# The new thing, and the reason this release exists: the running appliance was
+# asked for a picture of its own screen and produced one. It showed the
+# resting face, centred, with nothing pinned — which is exactly what a fresh
+# image should show now that no services ship. Until this build, that sentence
+# could only be written by somebody standing in front of the device.
 #
-# The thing worth recording, because it had never been tested before: a device
-# with nothing pinned was asked to keep the clock on screen. It wrote the
-# service, was told its first attempt refreshed too often, fixed that, proved
-# the result ran and exited cleanly, read out what it does and what it would
-# answer to, was told yes, installed it, and started it.
-#
-# The service runs as cogiti-service, owns its own directory, and that account
-# is refused the model key:
-#
-#     cat: /var/lib/cogiti/secrets/anthropic.api_key: Permission denied
-#
-# Three builds were needed for this. 0.2.0 was the first image with the
-# account and found that a service could not reach its own directory; 0.2.1
-# carried the fix and silently lost the account, because a package that calls
-# useradd captures nothing when the user already exists; 0.2.2 creates it at
-# boot. The second of those was caught only by verify-image.sh returning 25 of
-# 26 for a change nobody had made.
+# It was also the first image booted on a *copy*: a VM writes to what it
+# boots, so 0.2.2 was flashed carrying a clock service born during its own
+# verification. An image that has been verified must be the same image that
+# was verified.
