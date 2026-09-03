@@ -136,7 +136,18 @@ for t in "$SOURCES"/*.tar.xz; do
     keep=no
     for c in $COMPONENTS; do
         ver=$(make -s -C "$BASE_DIR/../$c" version)
-        case "$(basename "$t")" in *-"$ver".tar.xz) keep=yes ;; esac
+        # The name as well as the version. Matching the version alone kept
+        # any tarball whose version happened to equal *another* component's:
+        # avatari reached 0.2.0, and a cogiti-0.2.0 left over from when cogiti
+        # was 0.2.0 was kept by it. The recipe then globbed two archives and
+        # tar took the second for a member name to extract.
+        #
+        # Two patterns because a component ships more than its source —
+        # avatari-heads, audi-models, reflexi-wheels — and all of them are
+        # that component's.
+        case "$(basename "$t")" in
+            "$c"-"$ver".tar.xz|"$c"-*-"$ver".tar.xz) keep=yes ;;
+        esac
     done
     if [ "$keep" = no ]; then
         echo "  removing stale $(basename "$t")"
