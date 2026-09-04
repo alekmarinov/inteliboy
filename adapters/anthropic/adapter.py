@@ -45,6 +45,11 @@ MAX_TOKENS = 8000
 #: for the second half of a two-part question.
 MAX_SEARCHES = 8
 
+#: Pages it may open. Fewer than searches: a fetch is a whole page into the
+#: context, and the job here is to find one image URL rather than to read the
+#: web.
+MAX_FETCHES = 4
+
 # Adaptive thinking, on by default. It costs latency, which an appliance that
 # answers out loud can least afford — but the protocol has a `thought` event and
 # avatari has a face to put it on, and a head that shows it is working is worth
@@ -356,6 +361,17 @@ def declared_tools(granted):
             # will still be standing there for.
             tools.append({"type": "web_search_20260209", "name": "web_search",
                           "max_uses": MAX_SEARCHES})
+            # Fetching goes with searching, and the reason is measured: of
+            # eight attempts to put a product on the screen, five had no
+            # picture — not because a download failed (every one that was
+            # tried succeeded) but because search results do not hand over
+            # image URLs, and the model will not invent one. Opening the page
+            # it already found is how anybody gets the photograph.
+            #
+            # It can only fetch URLs already in the conversation, so this
+            # widens what it can read and not where it can go.
+            tools.append({"type": "web_fetch_20260209", "name": "web_fetch",
+                          "max_uses": MAX_FETCHES})
             continue
         if t["name"] == "http":
             tools.append({

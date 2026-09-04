@@ -385,13 +385,24 @@ class TestTools(unittest.TestCase):
         self.assertEqual(search["max_uses"], adapter.MAX_SEARCHES)
         self.assertNotIn("input_schema", search)
 
+    def test_fetching_comes_with_searching(self):
+        """Five of eight attempts to put a product on screen had no picture,
+        and none of them was a failed download: search results do not hand
+        over image URLs and the model will not invent one. Opening the page
+        it already found is how anybody gets the photograph."""
+        tools = adapter.declared_tools([{"name": "web_search"}])
+        types = [t.get("type") for t in tools if "type" in t]
+        self.assertEqual(types, ["web_search_20260209", "web_fetch_20260209"])
+        fetch = [t for t in tools if t.get("name") == "web_fetch"][0]
+        self.assertEqual(fetch["max_uses"], adapter.MAX_FETCHES)
+
     def test_code_execution_is_never_declared_beside_it(self):
         """`_20260209` runs code on their side for dynamic filtering, and a
         second execution environment confuses the model."""
         tools = adapter.declared_tools([{"name": "web_search"},
                                         {"name": "http", "hosts": ["x.com"]}])
         self.assertEqual([t.get("type") for t in tools if "type" in t],
-                         ["web_search_20260209"])
+                         ["web_search_20260209", "web_fetch_20260209"])
 
     def test_an_ungranted_search_is_not_declared(self):
         tools = adapter.declared_tools([{"name": "http", "hosts": []}])
