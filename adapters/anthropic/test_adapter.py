@@ -210,6 +210,16 @@ class TestPrompt(unittest.TestCase):
         # would be answering on the model's behalf.
         self.assertEqual(client.calls[1]["messages"][-1]["role"], "assistant")
 
+    def test_the_model_is_the_deployment_s_to_choose(self):
+        """`--model`, because cogiti builds this process's environment rather
+        than inheriting one: COGITI_MODEL never arrived from a shell, so the
+        model was only ever settable by editing this file."""
+        self.assertEqual(adapter.flag(["--model", "claude-sonnet-5"],
+                                      "--model"), "claude-sonnet-5")
+        self.assertEqual(adapter.flag(["--model=claude-sonnet-5"],
+                                      "--model"), "claude-sonnet-5")
+        self.assertIsNone(adapter.flag(["--dump", "/tmp/x"], "--model"))
+
     def test_thinking_is_adaptive_not_a_budget(self):
         """budget_tokens is rejected outright by this model family."""
         client = StubClient(Response([answer_block(say="ok")]))

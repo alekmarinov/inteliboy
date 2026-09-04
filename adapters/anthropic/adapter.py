@@ -35,6 +35,10 @@ import uuid
 import anthropic
 
 V = 1
+#: Set with `--model` on the adapter's command line, which is where a
+#: deployment states it: cogiti builds this process's environment rather than
+#: inheriting one, so COGITI_MODEL never arrived from a shell and was only
+#: ever settable by editing this file.
 MODEL = os.environ.get("COGITI_MODEL", "claude-opus-5")
 MAX_TOKENS = 8000
 
@@ -337,7 +341,7 @@ def declared_tools(granted):
                 "input_schema": t["input_schema"],
             })
             continue
-        if t["name"] == "display":
+        if t["name"] in ("display", "find_pictures"):
             # Declared by cogiti, which owns what it does; the adapter only
             # carries it. Passed through whole rather than rebuilt here, for
             # the same reason the device tool is: a schema written in two
@@ -739,6 +743,11 @@ def flag(argv, name):
 
 
 def main(argv):
+    # Before anything reads it — `--capabilities` reports the model, and a
+    # `global` after that first use is a SyntaxError rather than a bug found
+    # later.
+    global MODEL
+    MODEL = flag(argv, "--model") or MODEL
     if "--capabilities" in argv:
         emit({"type": "capabilities", "tools": True, "questions": False,
               "streaming": False, "model": MODEL,
