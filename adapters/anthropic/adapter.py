@@ -590,6 +590,20 @@ def run_once(client, run, inbox, dump=None):
     messages = conversation(context.get("recent") or [],
                             prompt.get("text", ""))
     system = preamble(context.get("situation") or {})
+    guess = prompt.get("resolver")
+    if guess:
+        # The fast path thought it recognised this and was not sure enough to
+        # act. Said here rather than folded into their words, for the same
+        # reason the situation is: what somebody said and what a matcher made
+        # of it are different things.
+        system.append({"type": "text", "text":
+                       "The device's own matcher thought this might be "
+                       "'%s' (%.0f%% sure) and was not confident enough to "
+                       "act on it. Treat that as a hint about what they may "
+                       "want, not as a decision — it does not know what you "
+                       "have been talking about."
+                       % (guess.get("guessed"),
+                          100 * (guess.get("confidence") or 0))})
     container = None
     did = []
 
