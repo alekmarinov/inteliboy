@@ -187,6 +187,27 @@ class TestPrompt(unittest.TestCase):
         self.assertEqual(client.calls[0]["messages"],
                          [{"role": "user", "content": "is it late?"}])
 
+    def test_what_is_on_screen_is_numbered(self):
+        """"Tell me more about the first one" needs a first one. The device
+        drew three products, said their names out loud, and then met the
+        obvious follow-up with no idea what was being pointed at."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "tell me about the first one",
+            "context": {"situation": {"on_screen": ["Sketch Pad", "Crystal Kit",
+                                                    "Soccer Ball"]}}}},
+            StubInbox())
+        block = client.calls[0]["system"][1]["text"]
+        self.assertIn("1. Sketch Pad", block)
+        self.assertIn("3. Soccer Ball", block)
+        self.assertIn("the first one", block)
+
+    def test_an_empty_screen_says_nothing_about_order(self):
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "hi", "context": {
+            "situation": {"speaker": "alek"}}}}, StubInbox())
+        self.assertNotIn("On the screen, in this order",
+                         client.calls[0]["system"][1]["text"])
+
     def test_a_named_speaker_is_named(self):
         client = StubClient(Response([answer_block(say="ok")]))
         adapter.run_once(client, {"prompt": {"text": "hi", "context": {
@@ -219,6 +240,30 @@ class TestPrompt(unittest.TestCase):
         self.assertEqual(adapter.flag(["--model=claude-sonnet-5"],
                                       "--model"), "claude-sonnet-5")
         self.assertIsNone(adapter.flag(["--dump", "/tmp/x"], "--model"))
+
+    def test_prose_at_the_end_is_taken_as_the_answer(self):
+        """Measured: "give me more details for the 3rd one" searched, acted,
+        and then ended its turn with five text blocks instead of calling
+        `answer` — and the screen read "couldn't: the model stopped without
+        calling answer" while a complete answer sat in the response.
+
+        An answer nobody hears is the failure the rule guards against, and
+        discarding one to enforce the rule is that failure with better
+        manners."""
+        client = StubClient(Response(
+            [Block("text", text="The third is an 18 carat bangle."),
+             Block("text", text="About nine hundred dollars.")],
+            stop_reason="end_turn"))
+        out = adapter.run_once(client, {"prompt": {"text": "the third one"}},
+                               StubInbox())
+        self.assertEqual(out["type"], "result")
+        self.assertIn("18 carat bangle", out["say"])
+        self.assertIn("nine hundred", out["say"])
+
+    def test_a_silent_stop_is_still_a_failure(self):
+        client = StubClient(Response([], stop_reason="end_turn"))
+        out = adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
+        self.assertEqual(out["kind"], "no_answer")
 
     def test_thinking_is_adaptive_not_a_budget(self):
         """budget_tokens is rejected outright by this model family."""
@@ -595,14 +640,26 @@ class TestResult(unittest.TestCase):
         self.assertEqual(r["show"], "S")
         self.assertEqual(r["did"], ["looked it up"])
 
-    def test_prose_without_an_answer_call_is_a_failure_not_a_result(self):
-        """The claim being defended: a model that writes the answer as text
-        has not answered. Accepting the prose here is how a deployment ends up
-        parsing markdown out of a voice line."""
-        client = StubClient(Response([Block("text", text="Paris, obviously.")]))
+    def test_prose_is_taken_but_made_fit_to_say(self):
+        """This reverses an earlier contract, and its reasoning is why the
+        cleaning exists: "accepting the prose here is how a deployment ends
+        up parsing markdown out of a voice line".
+
+        The worry was right and the remedy was not. Refusing the answer put
+        "couldn't: the model stopped without calling answer" on screen while
+        a complete answer sat in the response — measured, after a web search,
+        where it comes back as citation-bearing text and ends the turn."""
+        client = StubClient(Response([Block(
+            "text",
+            text="**Paris**, obviously. See https://example.com/paris\n"
+                 "- it is the capital")]))
         r = adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
-        self.assertEqual(r["type"], "failed")
-        self.assertEqual(r["kind"], "no_answer")
+        self.assertEqual(r["type"], "result")
+        self.assertIn("Paris, obviously.", r["say"])
+        self.assertNotIn("*", r["say"])
+        self.assertNotIn("http", r["say"])
+        self.assertNotIn("- it is", r["say"])
+        self.assertIn("answered in prose", r["did"])
 
     def test_stray_prose_is_surfaced_as_a_thought_not_dropped(self):
         call = Block("tool_use", id="a1", name="http", input={"url": "http://x/"})

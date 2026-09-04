@@ -528,6 +528,17 @@ def preamble(situation):
         # who this is will cheerfully assume, and the assumption is invisible.
         lines.append("You do not know who is speaking. Do not guess, and do "
                      "not use a name you have not been given.")
+    seen = situation.get("on_screen")
+    if seen:
+        # Numbered, because that is how the question arrives: "tell me more
+        # about the first one" needs a first one, and the device had drawn
+        # three products, said their names, and then had no idea what was
+        # being pointed at.
+        lines.append("On the screen, in this order: "
+                     + ", ".join("%d. %s" % (i + 1, t)
+                                 for i, t in enumerate(seen))
+                     + ". If they say \"the first one\" or point at one "
+                       "without naming it, that is what they mean.")
     pinned = situation.get("pinned")
     if pinned:
         lines.append("On the screen right now: %s." % ", ".join(pinned))
@@ -622,6 +633,26 @@ def _unescape(raw):
         out.append(c)
         i += 1
     return "".join(out), None
+
+
+def speakable(text):
+    """Prose, made fit to say out loud.
+
+    This is the work the old contract refused the answer for rather than do:
+    "accepting the prose here is how a deployment ends up parsing markdown
+    out of a voice line". The worry is right — an answer written as text
+    carries headings, bullets and URLs, and a speech engine reads every
+    asterisk. What was wrong was the remedy, which discarded a finished
+    answer and left the screen saying "couldn't" instead.
+
+    So it is taken and cleaned, once, here. Not a markdown renderer: enough
+    to stop a voice reading punctuation aloud.
+    """
+    out = re.sub(r"https?://\S+", "", text or "")
+    out = re.sub(r"[*_`#>]+", "", out)
+    out = re.sub(r"^\s*[-•]\s*", "", out, flags=re.M)
+    out = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", out)   # [label](url)
+    return re.sub(r"\s+", " ", out).strip()
 
 
 def _sentence_end(text, start, ends):
@@ -772,10 +803,13 @@ def run_once(client, run, inbox, dump=None):
         for block in response.content:
             if block.type == "thinking" and getattr(block, "thinking", ""):
                 emit({"type": "thought", "text": block.thinking[:400]})
-            elif block.type == "text" and block.text.strip():
-                # Not the answer — the answer only arrives through the tool.
-                # Surfaced as a thought so it is visible in the trace rather
-                # than silently dropped.
+            elif (block.type == "text" and block.text.strip()
+                  and response.stop_reason != "end_turn"):
+                # Mid-run prose is thinking out loud, and is surfaced as a
+                # thought so it is visible in the trace rather than silently
+                # dropped. Prose at `end_turn` is the answer itself — see
+                # below — and showing it as a thought first would put it on
+                # screen twice.
                 emit({"type": "thought", "text": block.text.strip()[:400]})
 
         if response.stop_reason == "pause_turn":
@@ -792,6 +826,21 @@ def run_once(client, run, inbox, dump=None):
 
         calls = [b for b in response.content if b.type == "tool_use"]
         if not calls:
+            # It answered in prose instead of calling `answer`. The system
+            # prompt says not to and it mostly does not — but after a web
+            # search it comes back with citation-bearing text blocks and ends
+            # the turn, and throwing that away meant a screen reading
+            # "couldn't: the model stopped without calling answer" while a
+            # complete answer sat in the response.
+            #
+            # Taken rather than refused. An answer nobody hears is the
+            # failure this was guarding against, and discarding one to
+            # enforce the rule is that failure with better manners.
+            prose = speakable(" ".join(b.text.strip() for b in response.content
+                                       if b.type == "text" and b.text.strip()))
+            if prose:
+                return done({"type": "result", "say": prose,
+                             "did": did + ["answered in prose"]})
             return done({"type": "failed", "kind": "no_answer",
                          "message": "the model stopped without calling answer"})
 
