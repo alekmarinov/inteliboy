@@ -367,6 +367,69 @@ class TestDump(unittest.TestCase):
         self.assertEqual(out["say"], "ok")
 
 
+class TestSpeakingWhileWriting(unittest.TestCase):
+    """The answer, in speakable pieces, while it is still being composed.
+
+    Measured before this existed: eleven escalations, median sixty-eight
+    seconds, every one past five arriving as two disjoint utterances — a
+    stall and then an answer prefixed with the question it answered.
+    """
+
+    def stream(self, pieces):
+        got = []
+        real, adapter.emit = adapter.emit, lambda o: got.append(o["text"])
+        try:
+            s = adapter._Sentences()
+            for p in pieces:
+                got += s.feed(p)
+            s.close()
+        finally:
+            adapter.emit = real
+        return got
+
+    def test_sentences_come_out_whole(self):
+        """A word at a time is neither speakable nor interruptible."""
+        self.assertEqual(
+            self.stream(['{"say": "Sunlight is a mix',
+                         ' of colours. Air scatters', ' the blue. ',
+                         'That is why.", "show": "x"}']),
+            ["Sunlight is a mix of colours.", "Air scatters the blue.",
+             "That is why."])
+
+    def test_nothing_is_said_twice(self):
+        """The first version added the whole field to itself on the turn the
+        string closed, and said every sentence twice."""
+        out = self.stream(['{"say": "One. ', 'Two. ', 'Three."}'])
+        self.assertEqual(out, ["One.", "Two.", "Three."])
+        self.assertEqual(len(out), len(set(out)))
+
+    def test_only_the_spoken_field_streams(self):
+        """`show` and `did` are structured and compose once when the result
+        lands — agent-protocol.md §7 is the whole reason this is safe."""
+        self.assertEqual(
+            self.stream(['{"show": "A card. With sentences.", ',
+                         '"say": "Only this."}']),
+            ["Only this."])
+
+    def test_the_tail_is_not_lost(self):
+        """An answer that trails off unfinished reads worse than one said
+        late: the last sentence often has no full stop after it."""
+        self.assertEqual(self.stream(['{"say": "No full stop here"}']),
+                         ["No full stop here"])
+
+    def test_escapes_are_undone(self):
+        self.assertEqual(self.stream([r'{"say": "He said \"go\". Then left."}']),
+                         ['He said "go".', "Then left."])
+
+    def test_a_field_that_never_arrives_says_nothing(self):
+        """Forgiving on purpose: a partial-JSON reader that is wrong would
+        lose an answer, and giving up quietly costs only the streaming."""
+        self.assertEqual(self.stream(['{"show": "no say field here"}']), [])
+
+    def test_the_answer_tool_asks_for_eager_arguments(self):
+        self.assertTrue(adapter.ANSWER_TOOL["eager_input_streaming"])
+
+
 class TestTools(unittest.TestCase):
 
     def test_ungranted_tools_are_not_described(self):

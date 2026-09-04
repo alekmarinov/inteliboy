@@ -28,6 +28,7 @@ which is what lets the store move without the adapter changing.
 import datetime
 import json
 import os
+import re
 import sys
 import threading
 import uuid
@@ -69,6 +70,10 @@ ANSWER_TOOL = {
         "through this tool."
     ),
     "strict": True,
+    # The arguments stream as they are written, so `say` can be spoken while
+    # the rest of the answer is still being composed. Not a beta and not a
+    # different call — the same `messages.stream` this already uses.
+    "eager_input_streaming": True,
     "input_schema": {
         "type": "object",
         "additionalProperties": False,
@@ -539,6 +544,88 @@ def _gap(seconds):
     return "%d hours" % (seconds // 3600)
 
 
+class _Sentences:
+    """The `say` field of the answer tool, in speakable pieces.
+
+    The arguments arrive as JSON being typed, so this watches for the `say`
+    string and hands back whole sentences from it. Only that field: `show`
+    and `did` are structured and compose once when the result lands, which is
+    the distinction `agent-protocol.md` §7 rests on.
+
+    Deliberately small and forgiving. A partial-JSON parser that is wrong
+    loses an answer; one that gives up quietly costs only the streaming, and
+    the whole answer still arrives in the result a moment later.
+    """
+
+    START = re.compile(r'"say"\s*:\s*"')
+    ENDS = ".!?"
+
+    def __init__(self):
+        self.raw = ""
+        self.value = ""       # everything of `say` seen so far, unescaped
+        self.sent = 0         # how much of it has been spoken
+        self.open = False     # inside the string
+        self.done = False     # its closing quote has arrived
+
+    def feed(self, piece):
+        if not piece or self.done:
+            return []
+        self.raw += piece
+        if not self.open:
+            m = self.START.search(self.raw)
+            if not m:
+                return []
+            self.open = True
+            self.raw = self.raw[m.end():]
+        # `value` is always the whole field so far, never an increment added
+        # to itself — which is what the first version did on the turn the
+        # string closed, and it said every sentence twice.
+        self.value, end = _unescape(self.raw)
+        if end is not None:
+            self.done = True
+        out = []
+        while True:
+            cut = _sentence_end(self.value, self.sent, self.ENDS)
+            if cut is None:
+                break
+            out.append(self.value[self.sent:cut].strip())
+            self.sent = cut
+        return [o for o in out if o]
+
+    def close(self):
+        """Whatever is left. The final result carries the whole answer, so a
+        tail lost here is a tail spoken twice or not at all — and not at all
+        is the one that reads as the device trailing off."""
+        rest = self.value[self.sent:].strip()
+        self.sent = len(self.value)
+        if rest:
+            emit({"type": "say", "text": rest})
+
+
+def _unescape(raw):
+    """The JSON string so far, and where it ended if it did."""
+    out, i = [], 0
+    while i < len(raw):
+        c = raw[i]
+        if c == "\\" and i + 1 < len(raw):
+            out.append({"n": "\n", "t": "\t", "r": "\r"}.get(raw[i + 1], raw[i + 1]))
+            i += 2
+            continue
+        if c == '"':
+            return "".join(out), i + 1
+        out.append(c)
+        i += 1
+    return "".join(out), None
+
+
+def _sentence_end(text, start, ends):
+    """One past the end of the first complete sentence after `start`."""
+    for i in range(start, len(text)):
+        if text[i] in ends and i + 1 < len(text) and text[i + 1] in " \n":
+            return i + 1
+    return None
+
+
 def think_aloud(client, request):
     """Make the request, reporting the reasoning while it happens.
 
@@ -553,6 +640,7 @@ def think_aloud(client, request):
     at a time reads the way a person skims.
     """
     buf = []
+    said = _Sentences()
 
     def flush():
         text = "".join(buf).strip()
@@ -566,6 +654,11 @@ def think_aloud(client, request):
                 if getattr(event, "type", None) != "content_block_delta":
                     continue
                 delta = getattr(event, "delta", None)
+                # The answer being written. Emitted a sentence at a time: the
+                # speech port synthesises a phrase, and a word at a time is
+                # neither speakable nor interruptible.
+                for sentence in said.feed(getattr(delta, "partial_json", "")):
+                    emit({"type": "say", "text": sentence})
                 piece = getattr(delta, "thinking", None)
                 if not piece:
                     continue
@@ -575,6 +668,7 @@ def think_aloud(client, request):
                         sum(len(x) for x in buf) > 160:
                     flush()
             flush()
+            said.close()
             return stream.get_final_message()
     except AttributeError:
         # A client with no streaming — the stubs in the tests are one. The
