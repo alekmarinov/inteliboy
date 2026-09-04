@@ -218,14 +218,20 @@ talk:
 # construction. Nobody puts a sentence on this device's stdin by accident,
 # and the window exists because a microphone hears a room. Set
 # ATTENTION=60 to exercise the gate itself.
-# SHOW=1 also prints every scene op the face would have been sent, by
-# pointing the presentation adapter at tools/tap.py running as a sink. The
-# text output's "[would show: ...]" is only the caption; this is the protocol.
+# SHOW=1 also prints every scene op the face is sent, by putting tools/tap.py
+# between cogiti and the renderer. The text output's "[would show: ...]" is
+# only the caption; this is the protocol.
+#
+# It forwards when there is a renderer to forward to, and only prints when
+# there is not — `--sink` is deliberately *not* passed here. Passing it meant
+# `make renderer` followed by `make chat SHOW=1` printed a perfect stream of
+# ops into a dead end while the head sat there doing nothing, which is a
+# worse failure than not printing at all because everything looks right.
 ATTENTION ?= 0
 TAPSOCK   ?= /tmp/cogiti-chat.sock
 chat:
 	@if [ -n "$(SHOW)" ]; then \
-	  TAP_SOCKET=$(TAPSOCK) python3 tools/tap.py --sink & \
+	  TAP_SOCKET=$(TAPSOCK) python3 tools/tap.py & \
 	  TAP=$$!; \
 	  trap "kill $$TAP 2>/dev/null" EXIT INT TERM; \
 	  sleep 0.4; \
