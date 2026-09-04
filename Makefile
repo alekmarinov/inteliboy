@@ -227,8 +227,15 @@ talk:
 # `make renderer` followed by `make chat SHOW=1` printed a perfect stream of
 # ops into a dead end while the head sat there doing nothing, which is a
 # worse failure than not printing at all because everything looks right.
+# VOICE=1 keeps the speech adapter, so the head speaks while you type.
+# Off by default because with no renderer up it prints three lines of
+# "azure unreachable, falling back to espeak-ng" around every answer, into
+# the one thing this target exists to show. With `make renderer` running it
+# is exactly what you want, and `make face` is the same thing without the
+# op tracing.
 ATTENTION ?= 0
 TAPSOCK   ?= /tmp/cogiti-chat.sock
+SPEECH     = $(if $(VOICE),,--speech-adapter=)
 chat:
 	@if [ -n "$(SHOW)" ]; then \
 	  TAP_SOCKET=$(TAPSOCK) python3 tools/tap.py & \
@@ -236,12 +243,12 @@ chat:
 	  trap "kill $$TAP 2>/dev/null" EXIT INT TERM; \
 	  sleep 0.4; \
 	  $(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
-	    --presentation-adapter=$(TAPSOCK) --speech-adapter= \
+	    --presentation-adapter=$(TAPSOCK) $(SPEECH) \
 	    --attention-s=$(ATTENTION) 2>&1; \
 	  kill $$TAP 2>/dev/null; \
 	else \
 	  $(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
-	    --presentation-adapter= --speech-adapter= \
+	    --presentation-adapter= $(SPEECH) \
 	    --attention-s=$(ATTENTION) 2>&1; \
 	fi
 
