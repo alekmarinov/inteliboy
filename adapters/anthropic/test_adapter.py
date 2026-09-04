@@ -165,6 +165,23 @@ class TestPrompt(unittest.TestCase):
             "situation": {"speaker": "alek"}}}}, StubInbox())
         self.assertIn("talking to alek", client.calls[0]["system"][1]["text"])
 
+    def test_a_paused_search_resumes_instead_of_giving_up(self):
+        """The server-side loop hits its own iteration limit mid-search and
+        returns `pause_turn`. Without handling it the turn ends with no
+        tool_use block, and the loop reports that the model stopped without
+        answering — which is what a long search looked like from outside."""
+        client = StubClient(
+            Response([Block("server_tool_use", id="s1", name="web_search",
+                            input={"query": "x"})], stop_reason="pause_turn"),
+            Response([answer_block(say="found it")]))
+        out = adapter.run_once(client, {"prompt": {"text": "look it up"}},
+                               StubInbox())
+        self.assertEqual(out["say"], "found it")
+        self.assertEqual(len(client.calls), 2, "it did not resume")
+        # Resumed with what it had and nothing else: a "continue" message
+        # would be answering on the model's behalf.
+        self.assertEqual(client.calls[1]["messages"][-1]["role"], "assistant")
+
     def test_thinking_is_adaptive_not_a_budget(self):
         """budget_tokens is rejected outright by this model family."""
         client = StubClient(Response([answer_block(say="ok")]))
@@ -299,6 +316,28 @@ class TestTools(unittest.TestCase):
         for fact in ("GET only", "api.coinbase.com", "404", "1 MB",
                      "20 seconds", "redirected_to", "error_kind"):
             self.assertIn(fact, d)
+
+    def test_web_search_is_a_server_tool_with_a_ceiling(self):
+        """Anthropic runs it; there is nothing to execute here. The ceiling
+        is because this device answers out loud — ten searches is a minute of
+        silence."""
+        tools = adapter.declared_tools([{"name": "web_search"}])
+        search = [t for t in tools if t.get("name") == "web_search"][0]
+        self.assertEqual(search["type"], "web_search_20260209")
+        self.assertEqual(search["max_uses"], adapter.MAX_SEARCHES)
+        self.assertNotIn("input_schema", search)
+
+    def test_code_execution_is_never_declared_beside_it(self):
+        """`_20260209` runs code on their side for dynamic filtering, and a
+        second execution environment confuses the model."""
+        tools = adapter.declared_tools([{"name": "web_search"},
+                                        {"name": "http", "hosts": ["x.com"]}])
+        self.assertEqual([t.get("type") for t in tools if "type" in t],
+                         ["web_search_20260209"])
+
+    def test_an_ungranted_search_is_not_declared(self):
+        tools = adapter.declared_tools([{"name": "http", "hosts": []}])
+        self.assertNotIn("web_search", [t.get("name") for t in tools])
 
     def test_granted_http_carries_its_host_list(self):
         tools = adapter.declared_tools([{"name": "http", "hosts": ["example.com"]}])

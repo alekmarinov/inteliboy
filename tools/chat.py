@@ -48,31 +48,45 @@ def main(argv):
 
     # No renderer and no voice: neither is built here, and both write pages
     # of "falling back to espeak-ng" into the one thing this exists to show.
+    #
+    # **--attention-s=0, and forgetting it cost an hour.** The dev config sets
+    # 60 because the appliance hears a room; typed input is addressed by
+    # construction, so the gate has nothing to protect here. Without it this
+    # script asked a question, the device correctly decided it had not been
+    # spoken to, and printed nothing — which is indistinguishable from the
+    # thing under test being broken, and was read that way twice.
+    #
+    # PYTHONUNBUFFERED is not what fixed that, and is kept because it is
+    # right anyway: Python block-buffers stdout when it is not a terminal.
+    env = dict(os.environ, PYTHONUNBUFFERED="1")
     p = subprocess.Popen([COGITI, "--conf=" + CONF, "--output=text",
+                          "--attention-s=0",
                           "--presentation-adapter=", "--speech-adapter="],
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, text=True, bufsize=1,
-                         cwd=os.path.join(ROOT, "config"))
-    out, lock = [], threading.Lock()
+                         env=env, cwd=os.path.join(ROOT, "config"))
+    # Printed as it arrives, by the reader thread. Collecting into a list
+    # and slicing it after each wait was the first shape and it showed
+    # nothing at all for an escalation — a bookkeeping bug in a tool whose
+    # entire job is to show you what happened, which is the worst place for
+    # one. Streaming has no bookkeeping to get wrong.
+    quiet = ("Task was destroyed", "task: <Task", "Exception ignored",
+             "Traceback (most", "  File \"", "RuntimeError:", "    self.",
+             "    proto.", "    return ", "  ^^^")
 
     def pump():
         for line in p.stdout:
-            with lock:
-                out.append(line.rstrip())
+            line = line.rstrip()
+            if line.strip() and not line.startswith(quiet):
+                print("  " + line, flush=True)
     threading.Thread(target=pump, daemon=True).start()
     time.sleep(6)
 
     for said in lines:
-        with lock:
-            mark = len(out)
         print("\n\033[1m> %s\033[0m" % said, flush=True)
         p.stdin.write(said + "\n")
         p.stdin.flush()
         time.sleep(WAIT_S)
-        with lock:
-            for line in out[mark:]:
-                if line.strip() and not line.startswith(("Task", "task:")):
-                    print("  " + line, flush=True)
 
     p.stdin.close()
     p.terminate()
