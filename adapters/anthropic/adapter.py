@@ -519,6 +519,49 @@ def _gap(seconds):
     return "%d hours" % (seconds // 3600)
 
 
+def think_aloud(client, request):
+    """Make the request, reporting the reasoning while it happens.
+
+    Streamed for one reason: a thought that arrives with the answer is not
+    feedback, it is a footnote. The device is silent for seconds at a time
+    while it searches, and the whole point of putting reasoning on the screen
+    is that somebody standing in front of it can see the silence is work.
+
+    Emitted in pieces rather than per token. The face's thought object is a
+    stream and appends what it is sent, so a token at a time would be a
+    socket write per token to draw text nobody can read that fast; a clause
+    at a time reads the way a person skims.
+    """
+    buf = []
+
+    def flush():
+        text = "".join(buf).strip()
+        buf.clear()
+        if text:
+            emit({"type": "thought", "text": text[:400]})
+
+    try:
+        with client.messages.stream(**request) as stream:
+            for event in stream:
+                if getattr(event, "type", None) != "content_block_delta":
+                    continue
+                delta = getattr(event, "delta", None)
+                piece = getattr(delta, "thinking", None)
+                if not piece:
+                    continue
+                buf.append(piece)
+                # On a sentence, or once there is enough to be worth reading.
+                if piece.rstrip().endswith((".", "?", "!", ":")) or \
+                        sum(len(x) for x in buf) > 160:
+                    flush()
+            flush()
+            return stream.get_final_message()
+    except AttributeError:
+        # A client with no streaming — the stubs in the tests are one. The
+        # answer matters more than the commentary.
+        return client.messages.create(**request)
+
+
 # ------------------------------------------------------------------- main --
 
 def run_once(client, run, inbox, dump=None):
@@ -547,7 +590,15 @@ def run_once(client, run, inbox, dump=None):
         if THINKING:
             # `adaptive`, not a token budget: budget_tokens is rejected
             # outright by this model family.
-            kwargs["thinking"] = {"type": "adaptive"}
+            #
+            # **`display` matters and its default is not what you want here.**
+            # On this model family `omitted` is the default, and it does not
+            # mean "no thinking" — the blocks arrive with their text empty.
+            # So the face had a thought stream, cogiti had an `on_thought`
+            # hook, the adapter had an emit guarded on non-empty text, and
+            # every one of them worked perfectly while forwarding nothing.
+            # Four thinking blocks in the last dump, all `thinking: ''`.
+            kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
 
         # Built once and both sent and recorded, so the dump is the call
         # rather than a description of it — a replay is create(**request).
@@ -574,7 +625,7 @@ def run_once(client, run, inbox, dump=None):
         if not dump.doc or not dump.doc.get("system"):
             dump.opening(run, request)
 
-        response = client.messages.create(**request)
+        response = think_aloud(client, request)
         step = dump.step(request, response)
         container = getattr(getattr(response, "container", None), "id", None)
 

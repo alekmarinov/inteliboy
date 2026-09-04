@@ -59,6 +59,34 @@ class StubInbox:
         return {i: self.answers.get(i) for i in ids}
 
 
+class StreamingStubClient(StubClient):
+    """Hands back thinking deltas, then a final message — the shape the SDK
+    streams, reduced to what this adapter reads."""
+
+    def __init__(self, pieces, *responses):
+        super().__init__(*responses)
+        self.pieces = pieces
+
+    def stream(self, **kw):
+        self.calls.append(kw)
+        final = self._queue.pop(0)
+        pieces = self.pieces
+        outer = self
+
+        class Ctx:
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                return False
+            def __iter__(self):
+                for piece in pieces:
+                    yield Block("content_block_delta",
+                                delta=Block("thinking_delta", thinking=piece))
+            def get_final_message(self):
+                return final
+        return Ctx()
+
+
 def answer_block(**kw):
     return Block("tool_use", id="t0", name="answer", input=kw)
 
@@ -186,8 +214,38 @@ class TestPrompt(unittest.TestCase):
         """budget_tokens is rejected outright by this model family."""
         client = StubClient(Response([answer_block(say="ok")]))
         adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
-        self.assertEqual(client.calls[0]["thinking"], {"type": "adaptive"})
+        self.assertEqual(client.calls[0]["thinking"],
+                         {"type": "adaptive", "display": "summarized"})
         self.assertNotIn("budget_tokens", json.dumps(client.calls[0]["thinking"]))
+
+    def test_reasoning_is_asked_for_not_merely_hoped_for(self):
+        """`omitted` is the default on this model family and does not mean
+        "no thinking" — the blocks arrive with empty text. The face had a
+        thought stream, cogiti had the hook, the adapter had the emit, and
+        all three worked while forwarding nothing."""
+        client = StubClient(Response([answer_block(say="ok")]))
+        adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
+        self.assertEqual(client.calls[0]["thinking"]["display"], "summarized")
+
+    def test_reasoning_is_reported_while_it_happens(self):
+        """A thought that arrives with the answer is a footnote, not
+        feedback. The device is silent for seconds while it searches, and the
+        point of putting reasoning on a screen is that the silence reads as
+        work."""
+        said = []
+        real, adapter.emit = adapter.emit, lambda o: said.append(o)
+        try:
+            client = StreamingStubClient(
+                ["Looking for the price. ", "Two sources disagree, ",
+                 "so I will take the newer one."],
+                Response([answer_block(say="ok")]))
+            adapter.run_once(client, {"prompt": {"text": "x"}}, StubInbox())
+        finally:
+            adapter.emit = real
+        thoughts = [o["text"] for o in said if o["type"] == "thought"]
+        self.assertTrue(thoughts, "the reasoning never left the adapter")
+        self.assertIn("Looking for the price.", thoughts[0])
+        self.assertTrue(len(thoughts) > 1, "it arrived in one lump at the end")
 
 
 class TestDump(unittest.TestCase):
