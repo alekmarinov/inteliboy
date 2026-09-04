@@ -218,11 +218,26 @@ talk:
 # construction. Nobody puts a sentence on this device's stdin by accident,
 # and the window exists because a microphone hears a room. Set
 # ATTENTION=60 to exercise the gate itself.
+# SHOW=1 also prints every scene op the face would have been sent, by
+# pointing the presentation adapter at tools/tap.py running as a sink. The
+# text output's "[would show: ...]" is only the caption; this is the protocol.
 ATTENTION ?= 0
+TAPSOCK   ?= /tmp/cogiti-chat.sock
 chat:
-	@$(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
-	  --presentation-adapter= --speech-adapter= \
-	  --attention-s=$(ATTENTION) 2>&1
+	@if [ -n "$(SHOW)" ]; then \
+	  TAP_SOCKET=$(TAPSOCK) python3 tools/tap.py --sink & \
+	  TAP=$$!; \
+	  trap "kill $$TAP 2>/dev/null" EXIT INT TERM; \
+	  sleep 0.4; \
+	  $(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
+	    --presentation-adapter=$(TAPSOCK) --speech-adapter= \
+	    --attention-s=$(ATTENTION) 2>&1; \
+	  kill $$TAP 2>/dev/null; \
+	else \
+	  $(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
+	    --presentation-adapter= --speech-adapter= \
+	    --attention-s=$(ATTENTION) 2>&1; \
+	fi
 
 ## renderer: start avatari's desktop build in the background
 #
