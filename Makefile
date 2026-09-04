@@ -201,12 +201,28 @@ COGITI  ?= ../cogiti
 AVATARI ?= ../avatari
 CONF    ?= config/cogiti.dev.conf
 
-.PHONY: talk face renderer
+.PHONY: talk chat face renderer
 
 ## talk: cogiti in a terminal, no face
 talk:
 	@$(COGITI)/bin/cogiti --conf=$(CONF) \
 	  $(if $(SOCK),--presentation-adapter=$(SOCK),) 2>&1
+
+## chat: cogiti in a terminal, nothing but the conversation
+#
+# `talk` wires up whatever the config names, which on this workstation means
+# a speech adapter that cannot reach Azure and a renderer socket with nothing
+# behind it. Both then say so, at length, into the one thing you are reading.
+#
+# Attention is off, and that is not a shortcut: typing is addressed by
+# construction. Nobody puts a sentence on this device's stdin by accident,
+# and the window exists because a microphone hears a room. Set
+# ATTENTION=60 to exercise the gate itself.
+ATTENTION ?= 0
+chat:
+	@$(COGITI)/bin/cogiti --conf=$(CONF) --output=text \
+	  --presentation-adapter= --speech-adapter= \
+	  --attention-s=$(ATTENTION) 2>&1
 
 ## renderer: start avatari's desktop build in the background
 #
