@@ -8,9 +8,19 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-03T19:32:55Z
-avatari    = { version = "0.3.0", commit = "6e5fb8bb5e014ba6c0c5b62040e8ed92099a53d2" }
-reflexi    = { version = "0.6.0", commit = "90dd29655299cf6dafce1c27e3472e5ed42e2fad" }
-cogiti     = { version = "0.16.0", commit = "9d437f327256366b881948769f0b2439a999dbbc" }
+# Generated 2026-09-07T02:15:34Z
+avatari    = { version = "0.4.0-2-gf55527b", commit = "f55527b2c9c4ffcb892ad9bef1c4d8ca62b21c98" }
+reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
+cogiti     = { version = "0.33.0", commit = "227659510243f6644b299c20c141f3f71ee7919c" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.4.0", commit = "0817b4a31cf7c984c2a4b6755a69525bc1df2014" }
+inteliboy  = { version = "0.15.0", commit = "05b91d75f31df31464be34f7e6d5b765655ef7ef" }
+
+# Booted, 2026-09-07, qemu on a copy of build/image.img:
+#   avatari  up 77s without a restart, libEGL + libSPIRV-Tools +
+#            libgallium-25.1.8 mapped, three fds on /dev/dri/card0 —
+#            a real GL context on DRM, which is what the new channel
+#            nearly cost us
+#   cogiti   'cogiti — listening'
+#   audi     starts, then exits and is restarted: qemu has no
+#            soundcard, so speech is UNPROVEN by this boot
+# Not booted on the hardware, and no credentials are in the image.

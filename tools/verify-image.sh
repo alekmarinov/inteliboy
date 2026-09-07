@@ -73,6 +73,29 @@ else
     printf '  MISS  libspeexdsp.so.1\n'; bad=$((bad+1))
 fi
 
+echo "== what the lfs12.4-blfs12.4 channel added"
+# Both were unresolved on the first build of this channel, and the first one
+# is the face: Mesa 25.1.8 links SPIRV-Tools, so libEGL does, so avatari does.
+# An image without it assembles, passes every other check, and boots to a
+# black screen.
+for lib in libSPIRV-Tools.so libglib-2.0.so.0; do
+    if sudo test -e "$MNT/usr/lib/$lib"; then
+        printf '  ok    %s\n' "$lib"; ok=$((ok+1))
+    else
+        printf '  MISS  %s\n' "$lib"; bad=$((bad+1))
+    fi
+done
+# fc-cache is what failed out loud when glib was absent, so its output is the
+# evidence that it ran rather than that it merely exists.
+n=$(sudo ls "$MNT/var/cache/fontconfig" 2>/dev/null | wc -l)
+printf '  %s    font cache built (%s entries)\n' \
+    "$([ "$n" -gt 0 ] && echo ok || echo MISS)" "$n"
+[ "$n" -gt 0 ] && ok=$((ok+1)) || bad=$((bad+1))
+
+echo "== the screen is part of the conversation"
+have "what is on screen keeps the turn open" /usr/lib/cogiti/cogiti/session.py "mid_conversation"
+have "the presenter knows what it left up"   /usr/lib/cogiti/cogiti/present.py "def on_screen"
+
 echo "== the blob reflexi will actually load"
 sudo ls -l "$MNT/usr/share/reflexi/reflexi.blob" | sed 's/^/  /'
 printf '\n  %d ok, %d missing\n' "$ok" "$bad"
