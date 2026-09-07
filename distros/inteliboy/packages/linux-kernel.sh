@@ -1,5 +1,5 @@
 #!/bin/bash
-# PACKAGE:  linux-kernel
+# PACKAGE:  linux-kernel-inteliboy
 # SOURCE:   linux-*.tar.xz
 # RELEASE:  1
 # CLASS:    system
