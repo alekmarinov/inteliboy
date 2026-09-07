@@ -1,4 +1,9 @@
 #!/bin/bash
+# PACKAGE:  audi
+# SOURCE:   audi-[0-9]*.tar.xz
+# VERSION:  0.2.0-2-ga77f58e
+# RELEASE:  1
+# CLASS:    extra
 set -e
 echo "Building audi.."
 echo "Approximate build time: less than 0.2 SBU"

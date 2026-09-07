@@ -1,4 +1,8 @@
 #!/bin/bash
+# PACKAGE:  cogiti
+# SOURCE:   cogiti-*.tar.xz
+# RELEASE:  1
+# CLASS:    extra
 set -e
 echo "Building cogiti.."
 echo "Approximate build time: less than 0.1 SBU"

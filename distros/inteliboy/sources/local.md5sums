@@ -1,11 +1,11 @@
 c9b2ca82691b5ce66836d78537ca1a11  audi-0.2.0-2-ga77f58e.tar.xz
 4bfe826b21ae60265ff0c554ac568a94  audi-models-0.2.0-2-ga77f58e.tar.xz
 ebbb96d7aac6dac17c2f2e2e3e3fe005  audi-wheels-0.2.0-2-ga77f58e.tar.xz
-3d2b4a7dfff1629d7360a86d5f07e546  avatari-0.4.0-2-gf55527b.tar.xz
-de71fa5a02f81004678cdf0d3770092d  avatari-heads-0.4.0-2-gf55527b.tar.xz
-93586fd2565c4308719736fcaf709ebe  avatari-voices-0.4.0-2-gf55527b.tar.xz
-ebfda34b618bc49dc52d867a3ba8c541  cogiti-0.33.0.tar.xz
-b314c6822554f6ec688f22f7603b4ee7  inteliboy-adapters-0.15.0.tar.xz
+75ca65186ab13311ca949849abd99ec2  avatari-0.5.0.tar.xz
+2295daa4e81617a323bf88d66059b70f  avatari-heads-0.5.0.tar.xz
+3d457c08459cbd779737419331f4fe3d  avatari-voices-0.5.0.tar.xz
+cbcdcc9b3ce0fab863dad2ea60ba5150  cogiti-0.35.0.tar.xz
+a1628703b08dca814f8d7331287e1184  inteliboy-adapters-0.15.0-4-g479110c-dirty.tar.xz
 59938b74f1076144c44d5e0f3be3aae5  reflexi-0.7.0.tar.xz
 108e01e0d8976fe7220b82a776db34f8  reflexi-wheels-0.7.0.tar.xz
 e6eb5ddef743a362c8018f260b91dca5  speexdsp-1.2.1.tar.gz

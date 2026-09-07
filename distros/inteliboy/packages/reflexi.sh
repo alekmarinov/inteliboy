@@ -1,4 +1,9 @@
 #!/bin/bash
+# PACKAGE:  reflexi
+# SOURCE:   reflexi-[0-9]*.tar.xz
+# VERSION:  0.7.0
+# RELEASE:  1
+# CLASS:    extra
 set -e
 echo "Building reflexi.."
 echo "Approximate build time: less than 0.1 SBU"

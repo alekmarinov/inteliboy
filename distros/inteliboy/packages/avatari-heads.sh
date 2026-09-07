@@ -1,4 +1,8 @@
 #!/bin/bash
+# PACKAGE:  avatari-heads
+# SOURCE:   avatari-heads-*.tar.xz
+# RELEASE:  1
+# CLASS:    extra
 set -e
 echo "Installing avatari heads.."
 echo "Approximate build time: less than 0.1 SBU"

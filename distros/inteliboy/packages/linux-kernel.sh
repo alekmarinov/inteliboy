@@ -1,4 +1,8 @@
 #!/bin/bash
+# PACKAGE:  linux-kernel
+# SOURCE:   linux-*.tar.xz
+# RELEASE:  1
+# CLASS:    system
 set -e
 echo "Building linux kernel for InteliBoy.."
 echo "Approximate build time: about 12 SBU"

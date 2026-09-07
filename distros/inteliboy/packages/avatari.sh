@@ -1,4 +1,9 @@
 #!/bin/bash
+# PACKAGE:  avatari
+# SOURCE:   avatari-[0-9]*.tar.xz
+# VERSION:  0.5.0
+# RELEASE:  1
+# CLASS:    extra
 set -e
 echo "Building avatari.."
 echo "Approximate build time: less than 0.1 SBU"
