@@ -8,32 +8,9 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-07T02:15:34Z
-avatari    = { version = "0.4.0-2-gf55527b", commit = "f55527b2c9c4ffcb892ad9bef1c4d8ca62b21c98" }
+# Generated 2026-09-07T22:31:16Z
+avatari    = { version = "0.6.0", commit = "419d872852abb96c8893063de81ca9c693dc9b22" }
 reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
-cogiti     = { version = "0.33.0", commit = "227659510243f6644b299c20c141f3f71ee7919c" }
+cogiti     = { version = "0.35.0", commit = "66d572729f814a0b10e97a83f2d668dd419e9388" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.15.0", commit = "05b91d75f31df31464be34f7e6d5b765655ef7ef" }
-
-# Booted, 2026-09-07, qemu on a copy of build/image.img:
-#   avatari  up 77s without a restart, libEGL + libSPIRV-Tools +
-#            libgallium-25.1.8 mapped, three fds on /dev/dri/card0 —
-#            a real GL context on DRM, which is what the new channel
-#            nearly cost us
-#   cogiti   'cogiti — listening'
-#   audi     starts, then exits and is restarted: qemu has no
-#            soundcard, so the capture and playback loop is
-#            UNPROVEN here. The TTS half is proven below.
-# Seeded and re-booted, same day: anthropic.api_key, azure.speech_key
-# and azure.speech_region, each 0600 in a 0700 directory. Both were
-# exercised from inside the running device, not just looked at:
-#   anthropic  api.anthropic.com answered on claude-sonnet-5, the
-#              model /etc/cogiti.conf names
-#   azure      eastus issued a token, and inteliboy-say synthesised
-#              a 158 KB wav with 32 viseme events - the TTS path
-#              whole, which the missing soundcard does not touch
-#
-# So THIS IMAGE IS A SECRET. It belongs to one device; every device
-# flashed from it shares one credential, and revoking means
-# reflashing. See tools/seed-image.sh, which says it at length.
-# Not booted on the hardware.
+inteliboy  = { version = "0.15.0-7-g19286d0", commit = "19286d049197a966e1319655e422b387f0811a2b" }
