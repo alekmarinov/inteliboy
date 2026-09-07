@@ -29,6 +29,23 @@
 # gcc is here for libstdc++ and libgcc_s, which Mesa needs and which LFS ships
 # as part of the compiler package. It is not here so the appliance can compile.
 #
+# Six packages arrived with the lfs12.4-blfs12.4 channel and are here for two
+# libraries nothing used to need:
+#
+#   libSPIRV-Tools.so   Mesa 25.1.8 links it, so libEGL, libGLESv2, libGL,
+#                       libgallium and gbm all do - and so does avatari. This
+#                       one is the face: without it nothing opens a GL context.
+#   libglib-2.0.so.0    BLFS 12.4's freetype is reinstalled against harfbuzz,
+#                       and that harfbuzz links glib. libfontconfig and libXft
+#                       follow it, which is why 'fc-cache' was the first thing
+#                       to fail.
+#
+# spirv-tools and glib are the two that matter; pcre2 comes with glib, and
+# cairo, pixman and lzo come with the cairo half of harfbuzz - hb-view and
+# libharfbuzz-cairo.so, which this appliance never calls. They are ~40 MB in a
+# 7.5 GB image, so they are carried rather than exempted in check.ignore: an
+# empty ignore file is worth more than the space.
+#
 # Lines starting with # and empty lines are ignored, the order is the order the
 # packages are installed in.
 
@@ -48,17 +65,23 @@ linux-kernel.tar.gz
 4-make-make-ca.tar.gz
 x-make-ca-certificates.tar.gz
 9-make-icu.tar.gz
+9-make-lzo.tar.gz
 10-make-libpng.tar.gz
 10-make-freetype.tar.gz
 10-make-graphite2.tar.gz
 10-make-harfbuzz.tar.gz
 10-make-fontconfig.tar.gz
+10-make-pixman.tar.gz
 24-make-libXau.tar.gz
 24-make-libXdmcp.tar.gz
 24-make-libxcb.tar.gz
 24-make-xorg-libraries.tar.gz
 24-make-libdrm.tar.gz
+9-make-pcre2.tar.gz
+9-make-glib.tar.gz
+13-make-spirv-tools.tar.gz
 24-make-mesa.tar.gz
+25-make-cairo.tar.gz
 42-make-alsa-lib.tar.gz
 42-make-alsa-utils.tar.gz
 4-make-openssh.tar.gz
