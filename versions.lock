@@ -22,5 +22,18 @@ inteliboy  = { version = "0.15.0", commit = "05b91d75f31df31464be34f7e6d5b765655
 #            nearly cost us
 #   cogiti   'cogiti — listening'
 #   audi     starts, then exits and is restarted: qemu has no
-#            soundcard, so speech is UNPROVEN by this boot
-# Not booted on the hardware, and no credentials are in the image.
+#            soundcard, so the capture and playback loop is
+#            UNPROVEN here. The TTS half is proven below.
+# Seeded and re-booted, same day: anthropic.api_key, azure.speech_key
+# and azure.speech_region, each 0600 in a 0700 directory. Both were
+# exercised from inside the running device, not just looked at:
+#   anthropic  api.anthropic.com answered on claude-sonnet-5, the
+#              model /etc/cogiti.conf names
+#   azure      eastus issued a token, and inteliboy-say synthesised
+#              a 158 KB wav with 32 viseme events - the TTS path
+#              whole, which the missing soundcard does not touch
+#
+# So THIS IMAGE IS A SECRET. It belongs to one device; every device
+# flashed from it shares one credential, and revoking means
+# reflashing. See tools/seed-image.sh, which says it at length.
+# Not booted on the hardware.

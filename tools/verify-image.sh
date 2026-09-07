@@ -96,6 +96,21 @@ echo "== the screen is part of the conversation"
 have "what is on screen keeps the turn open" /usr/lib/cogiti/cogiti/session.py "mid_conversation"
 have "the presenter knows what it left up"   /usr/lib/cogiti/cogiti/present.py "def on_screen"
 
+echo "== the credentials it was seeded with"
+# Names and modes only - never the contents. A missing one is silent until
+# the device is in front of someone: cogiti starts, listens, and has nothing
+# to escalate to.
+for name in anthropic.api_key azure.speech_key azure.speech_region; do
+    f="$MNT/var/lib/cogiti/secrets/$name"
+    if sudo test -s "$f" && [ "$(sudo stat -c %a "$f")" = 600 ]; then
+        printf '  ok    %-22s %s bytes, mode 600\n' "$name" "$(sudo stat -c %s "$f")"
+        ok=$((ok+1))
+    else
+        printf '  MISS  %-22s (seed with: make seed-image SECRETS=%s)\n' "$name" "$name"
+        bad=$((bad+1))
+    fi
+done
+
 echo "== the blob reflexi will actually load"
 sudo ls -l "$MNT/usr/share/reflexi/reflexi.blob" | sed 's/^/  /'
 printf '\n  %d ok, %d missing\n' "$ok" "$bad"
