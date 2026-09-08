@@ -8,24 +8,24 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-08T05:07:33Z
-avatari    = { version = "0.7.0", commit = "2e8f675c74ac44dbfb6534be62e0b1dad82d72da" }
+# Generated 2026-09-08T19:05:55Z
+avatari    = { version = "0.7.1", commit = "3a0ac471be9b5cf754f6beab585d6b95cc5d35a1" }
 reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
 cogiti     = { version = "0.36.1", commit = "4087b475d8ec9e559ed6fd04e013756ab6f2f56a" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.17.0", commit = "7d7ecf719cb8239dd82dbb10b7df80ed13a27555" }
+inteliboy  = { version = "0.17.1", commit = "82e4c7b577a5a7e932afb05ad5f5757199f7ab91" }
 
-# Booted, 2026-09-08, qemu on a copy of build/image.img:
-#   the face boots asleep  /proc/<pid>/cmdline is "/usr/bin/avatari
-#            --asleep", and by the time the first frame was captured
-#            cogiti had opened its eyes — the whole sequence this
-#            release is for, on a real boot rather than by hand
-#   the channel  'lpkg sync' answered "244 packages, current" with
-#            nothing typed into /etc/lpkg/lpkg.conf first. Every image
-#            before this one shipped a commented-out stub and could not
-#            upgrade itself at all.
-#   audi     restarts: qemu has no soundcard, so the capture and
-#            playback loop is UNPROVEN here
-# Seeded with anthropic.api_key, azure.speech_key, azure.speech_region.
-# THIS IMAGE IS A SECRET: it belongs to one device.
+# Booted, 2026-09-08, qemu on a copy of build/image.img: InteliBoy 0.17.1,
+# avatari 0.7.1, launched as "/usr/bin/avatari --asleep".
+#
+# The frame this release is about cannot be photographed from inside a VM:
+# cogiti is listening before sshd answers, so the face is already awake by
+# the time anything can ask it for a screenshot. The evidence for it is
+# 'avatari --asleep --record --frames 3' against AvatariBoy.vrm, where
+# f0000.png has the lids shut. 0.7.0 animated them closed instead, and
+# --shot renders thirty frames before capturing, which is well past the
+# 0.4 s the bug lived in — which is why every screenshot of it looked right.
+#
+# audi restarts: qemu has no soundcard, so capture and playback is UNPROVEN.
+# Seeded with all three credentials. THIS IMAGE IS A SECRET.
 # Not booted on the hardware.
