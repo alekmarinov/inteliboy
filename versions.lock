@@ -8,24 +8,25 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-08T20:11:46Z
+# Generated 2026-09-08T22:01:11Z
 avatari    = { version = "0.7.1", commit = "3a0ac471be9b5cf754f6beab585d6b95cc5d35a1" }
-reflexi    = { version = "0.8.0", commit = "4c761d15b202f3bb76e924513f1395fbe2e06793" }
-cogiti     = { version = "0.37.0", commit = "594d6622943f5862d0354f4abe005d0b729d291b" }
-audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.18.0", commit = "3ccaf2100f1a79449341855e90f61154a25d34af" }
+reflexi    = { version = "0.9.0", commit = "1e1a7c389c8b3bd85143d46e7715c2be6ae81db4" }
+cogiti     = { version = "0.39.0", commit = "6073801db5f7a946c65f19aaacabf023a42900b5" }
+audi       = { version = "0.3.0", commit = "a2ed91b591303813560c70fe41186fc16c11bf91" }
+inteliboy  = { version = "0.19.0-1-gb8e31ec", commit = "b8e31ecafecba7f1bf5984757ee55c93307c64e8" }
 
-# Booted, 2026-09-08, qemu on a copy of build/image.img: InteliBoy 0.18.0.
-#   lpkg 11, with the transaction lock. Before it, two upgrades at once
-#            interleaved over the same files and the loser rebuilt its owners
-#            index from a half-written database — which matters now that the
-#            appliance runs upgrades on its own.
-#   the duty ran on its own about fifteen seconds after cogiti started:
-#            synced, "244 packages in channel, current", found nothing
-#            upgradable and said nothing. Silence with nothing to report is
-#            the designed behaviour; this image is newer than the channel was.
-#   audi     restarts: qemu has no soundcard, so capture and playback is
-#            UNPROVEN here.
+# Booted, 2026-09-08, qemu on a copy of build/image.img: InteliBoy 0.19.0.
+#   the face waits for the ears now. cogiti holds the eyes shut until the
+#            speech adapter sends `ready` (speech-protocol.md §3), which audi
+#            emits when its capture device opens and its streaming recogniser
+#            is loaded. Bounded at 25s so an adapter that never says it
+#            cannot leave a device asleep.
+#   NOT PROVEN HERE. qemu has no soundcard: audi opened a capture that then
+#            failed on its first read, so `ready` arrived and the adapter
+#            died in a restart loop. The event therefore means "the device
+#            opened", not "audio works" — which is the most any adapter can
+#            honestly claim at that moment, and is still seconds later than
+#            the old signal, which was merely "the process was spawned".
+#            Only the hardware can show the difference.
+#   get_version answers from /etc/os-release instead of the model guessing.
 # Seeded with all three credentials. THIS IMAGE IS A SECRET.
-# Not booted on the hardware, and the notice itself is unwitnessed: it needs
-# a device that is behind the channel, which this one is not.
