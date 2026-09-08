@@ -79,9 +79,22 @@ case "${1}" in
       (
          echo $$ > "$PIDFILE"
          fails=0
+
+         # The first face of the boot is a sleeping one. This starts before
+         # S40mountfs and long before S91cogiti, so there is nothing behind
+         # the eyes yet; cogiti opens them when it begins serving, which is
+         # the moment they are worth opening for.
+         #
+         # **Only the first start.** A renderer that dies at midday and is
+         # restarted here comes back to a brain that is already running and
+         # has already sent its one wake, so starting that one asleep would
+         # leave a face with its eyes shut and nothing left to open them.
+         asleep=--asleep
+
          while true; do
             started=$(cut -d. -f1 /proc/uptime)
-            "$AVATARI" >>"$LOG" 2>&1
+            "$AVATARI" $asleep >>"$LOG" 2>&1
+            asleep=
             ran=$(( $(cut -d. -f1 /proc/uptime) - started ))
 
             # A renderer that ran for a while and then died is worth
