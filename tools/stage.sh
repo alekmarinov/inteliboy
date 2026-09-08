@@ -124,6 +124,38 @@ for c in $COMPONENTS; do
     [ "$found" -gt 0 ] || { echo "$c: 'make dist' produced no tarball for $ver"; exit 1; }
 done
 
+# The version pins, written rather than remembered.
+#
+# Three recipes carry an explicit '# VERSION:' and the other five derive theirs
+# from the tarball that SOURCE matched. That split is not arbitrary and cannot
+# be tidied away here: avatari, audi and reflexi each ship more than their
+# source — avatari-heads, audi-models, reflexi-wheels — so their SOURCE has to
+# read '<name>-[0-9]*.tar.xz' to avoid matching the siblings, and pkg-header.sh
+# refuses to derive a version through a pattern, having once silently derived
+# "freetype-2.12.1" as a version number.
+#
+# So the pin is real, and it is derived data living in a source file — the same
+# category as local.md5sums just below, and kept honest the same way: written
+# on every stage, never edited by hand. It went stale four times in three days
+# before this existed, and once it reached a package that was labelled as the
+# release before the one inside it. R2 names are permanent; that one could not
+# be taken back, only deleted.
+#
+# The real fix belongs to lfs: for '<name>-[0-9]*.tar.xz' the version is
+# unambiguously everything after the literal prefix, and a pkg-header.sh that
+# knew it would delete all three pins and this loop with them.
+for c in $COMPONENTS; do
+    recipe="$DISTRO_DIR/packages/$c.sh"
+    [ -f "$recipe" ] || continue
+    grep -q '^# VERSION:' "$recipe" || continue     # this one derives; leave it
+    ver=$(make -s -C "$BASE_DIR/../$c" version)
+    have=$(sed -n 's/^# VERSION:  *//p' "$recipe" | head -1)
+    if [ "$have" != "$ver" ]; then
+        sed -i "s|^# VERSION:.*|# VERSION:  $ver|" "$recipe"
+        echo "  $c.sh: pinned $ver (was $have)"
+    fi
+done
+
 # Anything for another version is stale: the recipes glob '<name>-[0-9]*' and
 # would be handed two archives and extract from the wrong one.
 #
@@ -218,3 +250,38 @@ done
 echo
 echo "$SOURCES/local.md5sums:"
 sed 's/^/    /' "$SOURCES/local.md5sums"
+
+# Last: every recipe's SOURCE must match exactly one staged tarball, and a
+# pinned VERSION must be that tarball's.
+#
+# The loop above writes the pins, so this should never fire — which is the
+# point of having it. It is the gate at the step that cannot be undone: a
+# package labelled as the release before the one inside it went to R2 once,
+# and names there are permanent. The check is cheap and the mistake is not.
+echo
+bad=0
+for c in $COMPONENTS; do
+    recipe="$DISTRO_DIR/packages/$c.sh"
+    [ -f "$recipe" ] || continue
+    glob=$(sed -n 's/^# SOURCE:  *//p' "$recipe" | head -1)
+    [ -n "$glob" ] || continue
+    # shellcheck disable=SC2086 — the glob is the point.
+    set -- $(cd "$SOURCES" && ls $glob 2>/dev/null)
+    if [ "$#" -ne 1 ]; then
+        echo "$c.sh: SOURCE '$glob' matches $# tarballs; a recipe must" >&2
+        echo "    have exactly one to extract" >&2
+        bad=1
+        continue
+    fi
+    pin=$(sed -n 's/^# VERSION:  *//p' "$recipe" | head -1)
+    if [ -n "$pin" ] && [ "$1" != "$c-$pin.tar.xz" ]; then
+        echo "$c.sh: pinned $pin but staged $1" >&2
+        bad=1
+    fi
+done
+if [ "$bad" != 0 ]; then
+    echo "refusing to leave the tree in a state that would publish a" >&2
+    echo "package labelled as something it is not." >&2
+    exit 1
+fi
+echo "every recipe matches exactly one staged tarball, and every pin agrees."
