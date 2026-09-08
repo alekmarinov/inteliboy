@@ -389,5 +389,12 @@ job      = "run"
 argv     = ["/usr/libexec/inteliboy/upgrade.sh"]
 confirm  = "Shall I install the available updates?"
 speak    = "Updating. I'll tell you when it's done."
-announce = "That's done — the updates are installed."
+# Said, and then shown, in different words. "That's done, four packages" is a
+# sentence; "cogiti 0.37.0-1 -> 0.40.0-1" is not one anybody should have to
+# listen to. upgrade.sh prints one line per package, so {lines} is how many and
+# {output} is which — the count is spoken and the detail is pinned to the
+# periphery, where it stays until something replaces it and can be read at
+# leisure rather than remembered.
+announce = "That's done — {lines} updated."
+notice   = "Updated:\n{output}"
 present  = "none"
