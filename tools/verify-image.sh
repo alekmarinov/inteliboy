@@ -116,6 +116,26 @@ echo "== the face boots asleep"
 have "avatari is started with --asleep" /etc/rc.d/init.d/avatari "asleep=--asleep"
 have "and a restart comes back awake"   /etc/rc.d/init.d/avatari "AVATARI\" \$asleep"
 
+echo "== it can offer its own updates"
+# lpkg 11 is the first with a transaction lock. Before it, two upgrades at
+# once interleaved over the same files and the loser rebuilt its owners index
+# from a half-written database — and the appliance is about to start running
+# upgrades on its own, unattended.
+v=$(sudo grep -m1 '^VERSION=' "$MNT/usr/bin/lpkg" 2>/dev/null | cut -d= -f2)
+if [ "${v:-0}" -ge 11 ] 2>/dev/null && sudo grep -q 'flock' "$MNT/usr/bin/lpkg"; then
+    printf '  ok    lpkg %s, with the transaction lock\n' "$v"; ok=$((ok+1))
+else
+    printf '  MISS  lpkg %s has no flock — unattended upgrades would race\n' "${v:-?}"
+    bad=$((bad+1))
+fi
+have "the hourly check"                /etc/cogiti/commands.toml "every_s"
+have "the spoken update, asking first" /etc/cogiti/commands.toml "Shall I install"
+if sudo test -x "$MNT/usr/libexec/inteliboy/upgrade.sh"; then
+    printf '  ok    upgrade.sh, which leaves the brain until last\n'; ok=$((ok+1))
+else
+    printf '  MISS  upgrade.sh\n'; bad=$((bad+1))
+fi
+
 echo "== the credentials it was seeded with"
 # Names and modes only - never the contents. A missing one is silent until
 # the device is in front of someone: cogiti starts, listens, and has nothing

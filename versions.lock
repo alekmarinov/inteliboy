@@ -8,24 +8,24 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-08T19:05:55Z
+# Generated 2026-09-08T20:11:46Z
 avatari    = { version = "0.7.1", commit = "3a0ac471be9b5cf754f6beab585d6b95cc5d35a1" }
-reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
-cogiti     = { version = "0.36.1", commit = "4087b475d8ec9e559ed6fd04e013756ab6f2f56a" }
+reflexi    = { version = "0.8.0", commit = "4c761d15b202f3bb76e924513f1395fbe2e06793" }
+cogiti     = { version = "0.37.0", commit = "594d6622943f5862d0354f4abe005d0b729d291b" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.17.1", commit = "82e4c7b577a5a7e932afb05ad5f5757199f7ab91" }
+inteliboy  = { version = "0.18.0", commit = "3ccaf2100f1a79449341855e90f61154a25d34af" }
 
-# Booted, 2026-09-08, qemu on a copy of build/image.img: InteliBoy 0.17.1,
-# avatari 0.7.1, launched as "/usr/bin/avatari --asleep".
-#
-# The frame this release is about cannot be photographed from inside a VM:
-# cogiti is listening before sshd answers, so the face is already awake by
-# the time anything can ask it for a screenshot. The evidence for it is
-# 'avatari --asleep --record --frames 3' against AvatariBoy.vrm, where
-# f0000.png has the lids shut. 0.7.0 animated them closed instead, and
-# --shot renders thirty frames before capturing, which is well past the
-# 0.4 s the bug lived in — which is why every screenshot of it looked right.
-#
-# audi restarts: qemu has no soundcard, so capture and playback is UNPROVEN.
+# Booted, 2026-09-08, qemu on a copy of build/image.img: InteliBoy 0.18.0.
+#   lpkg 11, with the transaction lock. Before it, two upgrades at once
+#            interleaved over the same files and the loser rebuilt its owners
+#            index from a half-written database — which matters now that the
+#            appliance runs upgrades on its own.
+#   the duty ran on its own about fifteen seconds after cogiti started:
+#            synced, "244 packages in channel, current", found nothing
+#            upgradable and said nothing. Silence with nothing to report is
+#            the designed behaviour; this image is newer than the channel was.
+#   audi     restarts: qemu has no soundcard, so capture and playback is
+#            UNPROVEN here.
 # Seeded with all three credentials. THIS IMAGE IS A SECRET.
-# Not booted on the hardware.
+# Not booted on the hardware, and the notice itself is unwitnessed: it needs
+# a device that is behind the channel, which this one is not.
