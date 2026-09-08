@@ -8,9 +8,22 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-07T22:31:16Z
+# Generated 2026-09-08T02:14:21Z
 avatari    = { version = "0.6.0", commit = "419d872852abb96c8893063de81ca9c693dc9b22" }
 reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
 cogiti     = { version = "0.35.0", commit = "66d572729f814a0b10e97a83f2d668dd419e9388" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.15.0-7-g19286d0", commit = "19286d049197a966e1319655e422b387f0811a2b" }
+inteliboy  = { version = "0.16.0", commit = "52f001d3fcc935053124919211a0e5d3d5a524d7" }
+
+# Booted, 2026-09-07, qemu on a copy of build/image.img:
+#   avatari  0.6.0, libEGL + libSPIRV-Tools + libgallium-25.1.8 mapped
+#   cogiti   listening; audi restarts, qemu has no soundcard, so the
+#            capture and playback loop is UNPROVEN here
+#   the fix this release is for: /etc/avatari.conf and
+#            /usr/share/avatari/avatari.conf.default both present in a
+#            fresh image, and 'lpkg owns /etc/avatari.conf' answers
+#            "owned by no package" — so no upgrade can reclaim it
+# Seeded with anthropic.api_key, azure.speech_key, azure.speech_region.
+# THIS IMAGE IS A SECRET: it belongs to one device.
+# Not booted on the hardware — but 192.168.1.149 runs this exact set,
+# reached by 'lpkg upgrade' from the same channel rather than by flashing.
