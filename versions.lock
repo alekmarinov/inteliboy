@@ -8,22 +8,24 @@
 #
 # It still records what was built, not that it works. That word is
 # earned by booting it, and is written below by hand.
-# Generated 2026-09-08T02:14:21Z
-avatari    = { version = "0.6.0", commit = "419d872852abb96c8893063de81ca9c693dc9b22" }
+# Generated 2026-09-08T05:07:33Z
+avatari    = { version = "0.7.0", commit = "2e8f675c74ac44dbfb6534be62e0b1dad82d72da" }
 reflexi    = { version = "0.7.0", commit = "11e7fb7c1c808007297ae0926b5ea284181c65de" }
-cogiti     = { version = "0.35.0", commit = "66d572729f814a0b10e97a83f2d668dd419e9388" }
+cogiti     = { version = "0.36.1", commit = "4087b475d8ec9e559ed6fd04e013756ab6f2f56a" }
 audi       = { version = "0.2.0-2-ga77f58e", commit = "a77f58e2dc45000b6ce96db3c4fc08d11864cf4d" }
-inteliboy  = { version = "0.16.0", commit = "52f001d3fcc935053124919211a0e5d3d5a524d7" }
+inteliboy  = { version = "0.17.0", commit = "7d7ecf719cb8239dd82dbb10b7df80ed13a27555" }
 
-# Booted, 2026-09-07, qemu on a copy of build/image.img:
-#   avatari  0.6.0, libEGL + libSPIRV-Tools + libgallium-25.1.8 mapped
-#   cogiti   listening; audi restarts, qemu has no soundcard, so the
-#            capture and playback loop is UNPROVEN here
-#   the fix this release is for: /etc/avatari.conf and
-#            /usr/share/avatari/avatari.conf.default both present in a
-#            fresh image, and 'lpkg owns /etc/avatari.conf' answers
-#            "owned by no package" — so no upgrade can reclaim it
+# Booted, 2026-09-08, qemu on a copy of build/image.img:
+#   the face boots asleep  /proc/<pid>/cmdline is "/usr/bin/avatari
+#            --asleep", and by the time the first frame was captured
+#            cogiti had opened its eyes — the whole sequence this
+#            release is for, on a real boot rather than by hand
+#   the channel  'lpkg sync' answered "244 packages, current" with
+#            nothing typed into /etc/lpkg/lpkg.conf first. Every image
+#            before this one shipped a commented-out stub and could not
+#            upgrade itself at all.
+#   audi     restarts: qemu has no soundcard, so the capture and
+#            playback loop is UNPROVEN here
 # Seeded with anthropic.api_key, azure.speech_key, azure.speech_region.
 # THIS IMAGE IS A SECRET: it belongs to one device.
-# Not booted on the hardware — but 192.168.1.149 runs this exact set,
-# reached by 'lpkg upgrade' from the same channel rather than by flashing.
+# Not booted on the hardware.

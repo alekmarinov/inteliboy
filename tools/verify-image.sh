@@ -96,6 +96,26 @@ echo "== the screen is part of the conversation"
 have "what is on screen keeps the turn open" /usr/lib/cogiti/cogiti/session.py "mid_conversation"
 have "the presenter knows what it left up"   /usr/lib/cogiti/cogiti/present.py "def on_screen"
 
+echo "== it can reach its own channel"
+# distro.conf had no REPO_URL until 0.17.0, so build-distro.sh wrote a
+# commented-out stub and every image before this one booted unable to sync or
+# upgrade. Invisible until a device was flashed fresh, because the appliance in
+# use had been given the line by hand.
+if sudo grep -q '^REPO_URL=' "$MNT/etc/lpkg/lpkg.conf" 2>/dev/null; then
+    printf '  ok    %s\n' "$(sudo grep -m1 '^REPO_URL=' "$MNT/etc/lpkg/lpkg.conf")"
+    ok=$((ok+1))
+else
+    printf '  MISS  /etc/lpkg/lpkg.conf has no REPO_URL - this image cannot upgrade\n'
+    bad=$((bad+1))
+fi
+
+echo "== the face boots asleep"
+# Only the first start of the boot: cogiti sends one wake when it begins
+# serving, so a renderer restarted later must come back awake or nothing would
+# ever open its eyes.
+have "avatari is started with --asleep" /etc/rc.d/init.d/avatari "asleep=--asleep"
+have "and a restart comes back awake"   /etc/rc.d/init.d/avatari "AVATARI\" \$asleep"
+
 echo "== the credentials it was seeded with"
 # Names and modes only - never the contents. A missing one is silent until
 # the device is in front of someone: cogiti starts, listens, and has nothing
