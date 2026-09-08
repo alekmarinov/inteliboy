@@ -74,6 +74,28 @@ done
 # here is what went into a tarball, and the tarball is what the package built
 # from, so this file cannot drift from the image without someone deleting it.
 STAGED="$BASE_DIR/build/staged.lock"
+
+# What this repository's own version is, decided *before* anything below has
+# written to the tree.
+#
+# It is `git describe --dirty`, and staging edits tracked files: the checksums
+# at the end, and the recipe pins further down. Computed where it used to be —
+# after those writes — every stage reported the tree as dirty because of what
+# the stage itself had just done, and named the adapters tarball accordingly.
+# One of those reached R2, where names are permanent.
+#
+# `local.md5sums` is excluded from the question entirely. It is generated here
+# from the tarballs staged in this run, so it is an output of staging and not
+# a change to the source; letting it decide whether the source is clean is the
+# same confusion one step further on. A modified *recipe* still counts, because
+# that is a real edit that happens to include a generated line.
+ADAPTERS_VER=$(git -C "$BASE_DIR" describe --tags --always 2>/dev/null || echo 0.0.0)
+if ! git -C "$BASE_DIR" diff --quiet -- \
+        ':!distros/*/sources/local.md5sums' 2>/dev/null ||
+   ! git -C "$BASE_DIR" diff --cached --quiet -- \
+        ':!distros/*/sources/local.md5sums' 2>/dev/null; then
+    ADAPTERS_VER="$ADAPTERS_VER-dirty"
+fi
 mkdir -p "$BASE_DIR/build"
 { echo "# What 'make stage' put into the image, written as it was staged."
   echo "# 'make lock' reads this rather than HEAD: HEAD is where the source"
@@ -198,7 +220,6 @@ done
 # The wheels are fetched for the appliance's Python, never this one's. Only
 # `anthropic` and its dependencies: audi brings its own, and duplicating them
 # would put two copies of numpy in the image.
-ADAPTERS_VER=$(git -C "$BASE_DIR" describe --tags --always --dirty 2>/dev/null || echo 0.0.0)
 case "$ADAPTERS_VER" in
     *-dirty)
         echo "inteliboy-adapters $ADAPTERS_VER  (uncommitted changes — this"

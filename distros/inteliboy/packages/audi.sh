@@ -1,7 +1,7 @@
 #!/bin/bash
 # PACKAGE:  audi
 # SOURCE:   audi-[0-9]*.tar.xz
-# VERSION:  0.2.0-2-ga77f58e
+# VERSION:  0.3.0
 # RELEASE:  1
 # CLASS:    extra
 set -e
