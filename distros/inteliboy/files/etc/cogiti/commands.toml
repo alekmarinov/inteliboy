@@ -330,3 +330,55 @@ present    = "none"
 job        = "stop"
 speak      = ""
 present    = "none"
+
+# ---------------------------------------------------------------- updates --
+#
+# The appliance keeping its own software current. Two entries, one mechanism:
+# a `run` job is a command line that outlives its turn, and the difference
+# between noticing and doing is `notice` (shown, never spoken) against
+# `announce` (spoken, and it interrupts).
+#
+# The argv lives here and nowhere else. cogiti must not know what a package
+# manager is — CLAUDE.md §11 — so this file is the only place in the system
+# that says "lpkg".
+
+# The standing duty. Ticks hourly, says nothing unless it found something, and
+# what it says goes on the screen rather than into the room.
+#
+# `sync` is a separate step from the check on purpose: maybe_sync prints its
+# prose to *stdout*, ahead of the table, so a check that syncs emits three or
+# four lines of "channel index is 30h old, refreshing" before the first
+# package. `--no-sync` keeps stdout to the table alone, and the notice counts
+# lines. sync's own noise goes to the log.
+#
+# There is no intent for this. Nobody says it; it is a duty, and the only
+# route to it is `every_s`.
+[check_updates]
+job      = "run"
+argv     = ["/bin/sh", "-c",
+            "lpkg sync >>/var/log/lpkg-check.log 2>&1; lpkg list --upgradable --no-sync"]
+every_s  = 3600
+notice   = "{lines} updates ready — say “update”"
+present  = "none"
+
+# The spoken one. reflexi resolves `update` at confirm because it is
+# destructive, so the question below is always asked and is never answered by
+# cogiti, a timeout or the model.
+#
+# The upgrade names its packages rather than running bare. A bare `lpkg
+# upgrade` would collect any core package in the channel and then refuse the
+# whole transaction, installing nothing — and it would take the kernel with
+# it, landing a new vmlinuz while grub.cfg still names the old one.
+#
+# cogiti is upgraded last and on its own, by the script, because lpkg will
+# replace a running program's files underneath it: what is already open keeps
+# its inode, everything opened afterwards is the new version, and a restart
+# mid-transaction orphans the child still writing files. So: everything else,
+# announce, then itself.
+[update]
+job      = "run"
+argv     = ["/usr/libexec/inteliboy/upgrade.sh"]
+confirm  = "Shall I install the available updates?"
+speak    = "Updating. I'll tell you when it's done."
+announce = "That's done — the updates are installed."
+present  = "none"
