@@ -172,6 +172,15 @@ speak    = "I am {hostname}."
 present  = "{pretty_name}"
 linger   = 15
 
+# What it is running. The version and the build id together: two images can
+# claim one version and differ, and the build id is the only thing that tells
+# them apart on a device you are standing in front of.
+[get_version]
+provider = "device.version"
+speak    = "I'm running InteliBoy {version_id}."
+present  = "{pretty_name}\nbuild {build_id}"
+linger   = 20
+
 [get_disk]
 provider = "device.disk"
 speak    = "There is {free_spoken} free."
