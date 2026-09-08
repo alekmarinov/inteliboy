@@ -1,7 +1,7 @@
 #!/bin/bash
 # PACKAGE:  avatari
 # SOURCE:   avatari-[0-9]*.tar.xz
-# VERSION:  0.7.0
+# VERSION:  0.7.1
 # RELEASE:  1
 # CLASS:    extra
 set -e
