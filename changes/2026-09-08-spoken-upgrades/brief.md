@@ -108,6 +108,21 @@ proves it: on the device, and by verify-image.
 - **Reading the journal / rolling back a failed upgrade.** Nothing reads it
   today; that is lpkg's to fix if it ever should be.
 
+## Left to fix, bundled with the next change
+
+**The duty tasks are not cancelled at shutdown.** `run_duties` spawns one
+`asyncio.ensure_future(self._duty(...))` per duty and keeps no handle, so
+stopping cogiti prints
+
+    Task was destroyed but it is pending!
+    task: <Task pending coro=<Cogiti._duty() running at main.py:560>>
+
+Seen on 192.168.1.117 after `lpkg upgrade` restarted the brain. Harmless — the
+process is already exiting — but a duty mid-check dies without tidying up, and
+the timers next door already do this properly: keep the handles, cancel them in
+the `finally` that closes the loop. Deferred deliberately rather than
+forgotten; the user asked for it bundled rather than shipped on its own.
+
 ## Rollback
 
 Each half is independently revertable: the intent by deleting one yaml and
