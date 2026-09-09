@@ -18,9 +18,9 @@
 set -e
 
 DIFF=/work/diff
-RECIPE=/work/recipe.sh
 OUT=/work/out
-NAME=$(basename "$RECIPE" .sh)
+NAME=${1:?pack.sh needs the package name}
+RECIPE=/work/$NAME.sh
 STAGE=/tmp/.pkgstage
 
 rm -rf "$STAGE"; mkdir -p "$STAGE/.meta"
@@ -41,8 +41,12 @@ rm -rf "$STAGE"; mkdir -p "$STAGE/.meta"
 
 while read -r state path; do
     [ -n "$path" ] || continue
+    # The mount points as well as what is under them. /work and /sources are
+    # bind mounts and docker reports the directories themselves as changed, so
+    # excluding only their children put "work/" and "sources/" in the payload.
     case "$path" in
-        /tmp/*|/proc/*|/sys/*|/dev/*|/run/*|/work/*|/sources/*) continue ;;
+        /tmp|/tmp/*|/proc|/proc/*|/sys|/sys/*|/dev|/dev/*|/run|/run/*) continue ;;
+        /work|/work/*|/sources|/sources/*) continue ;;
     esac
     rel=${path#/}
     case "$state" in
@@ -54,8 +58,19 @@ while read -r state path; do
             if [ -L "$path" ] || [ -f "$path" ]; then
                 mkdir -p "$STAGE/$(dirname "$rel")"
                 cp -a "$path" "$STAGE/$rel"
-                [ "$state" = A ] && echo "$rel" >> "$STAGE/.meta/created" \
-                                 || echo "$rel" >> "$STAGE/.meta/modified"
+                # A file already in the base is not necessarily somebody
+                # else's. On a rebuild this package's own files are there from
+                # its previous build, so docker calls them changed — and
+                # build-distro.sh reads that to tell a package replacing a
+                # file it owns from several packages each adding to a shared
+                # one. The previous package says which are its own; without
+                # this, a rebuilt cogiti reported 123 files modified and 10
+                # created where it had in fact created all 133.
+                if [ "$state" = A ] || grep -qxF "$rel" /work/mine 2>/dev/null; then
+                    echo "$rel" >> "$STAGE/.meta/created"
+                else
+                    echo "$rel" >> "$STAGE/.meta/modified"
+                fi
             elif [ -d "$path" ] && [ "$state" = A ]; then
                 mkdir -p "$STAGE/$rel"
                 chmod --reference="$path" "$STAGE/$rel" 2>/dev/null || true

@@ -1,7 +1,12 @@
 #!/bin/bash
 # Build this distro's own packages in the LFS SDK container.
 #
-#   tools/build-packages.sh [<distro dir>]
+#   tools/build-packages.sh [<distro dir>] [<recipe>...]
+#
+# Naming recipes builds only those, which is how a single package is retried
+# without waiting for the other eight — and how this was first tried at all,
+# against a scratch LFS_PACKAGES so a test could not reach the cache the
+# channel is built from.
 #
 # ---------------------------------------------------------------------------
 # Why this exists
@@ -30,6 +35,12 @@ set -e
 
 BASE_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/.." &> /dev/null && pwd )
 DISTRO_DIR=${1:-$BASE_DIR/distros/inteliboy}
+[ $# -gt 0 ] && shift
+ONLY=("$@")
+# Absolute, because a bind mount cannot be relative: docker reads a path with
+# no leading slash as the *name* of a named volume and says so in terms that
+# do not obviously mean "you passed a relative path".
+DISTRO_DIR=$( cd -- "$DISTRO_DIR" &> /dev/null && pwd )
 SOURCES="$DISTRO_DIR/sources"
 RECIPES="$DISTRO_DIR/packages"
 ID=$(basename "$DISTRO_DIR")
@@ -41,6 +52,8 @@ IMAGE=${LFS_SDK_IMAGE:-lfs-sdk:12.4}
 # problem — the shared *build* layer was.
 LFS_DIR=${LFS:-$BASE_DIR/../lfs}
 PACKAGES_DIR=${LFS_PACKAGES:-$LFS_DIR/packages}
+mkdir -p "$PACKAGES_DIR"
+PACKAGES_DIR=$( cd -- "$PACKAGES_DIR" &> /dev/null && pwd )
 
 # ------------------------------------------------------------------ docker --
 command -v docker > /dev/null || {
@@ -93,6 +106,13 @@ built=0; skipped=0; adopted=0
 for recipe in "$RECIPES"/*.sh; do
     [ -e "$recipe" ] || continue
     name=$(basename "$recipe" .sh)
+    if [ ${#ONLY[@]} -gt 0 ]; then
+        wanted=no
+        for w in "${ONLY[@]}"; do
+            [ "$w" = "$name" ] || [ "$w" = "$name.sh" ] && wanted=yes
+        done
+        [ "$wanted" = yes ] || continue
+    fi
     flag="$BASE_DIR/build/pkglogs/$name.ready"
     sum_file="$BASE_DIR/build/pkglogs/$name.recipesum"
     sum=$(sha256sum "$recipe" | cut -d' ' -f1)
@@ -128,8 +148,17 @@ for recipe in "$RECIPES"/*.sh; do
     trap cleanup EXIT
 
     mkdir -p "$work/out"
-    cp "$recipe" "$work/recipe.sh"
+    # Under its own name: pack.sh takes the package name from the file, and a
+    # recipe copied to "recipe.sh" produces a package called recipe.tar.gz.
+    cp "$recipe" "$work/$name.sh"
     cp "$BASE_DIR/tools/sdk/pack.sh" "$work/pack.sh"
+    # What this package owned last time, so a rebuild is not mistaken for one
+    # package overwriting another's files.
+    : > "$work/mine"
+    if [ -f "$PACKAGES_DIR/$name.tar.gz" ]; then
+        tar tzf "$PACKAGES_DIR/$name.tar.gz" 2>/dev/null \
+            | sed 's|^\./||' | grep -v '/$' > "$work/mine" || true
+    fi
 
     # The recipe runs exactly as it does in the chroot: sources at /sources,
     # installing into '/'. It needs to know nothing about being in a container,
@@ -140,7 +169,7 @@ for recipe in "$RECIPES"/*.sh; do
             -v "$SOURCES":/sources:ro \
             -v "$work":/work \
             -w / "$IMAGE" \
-            bash -c 'set -e; bash /work/recipe.sh' )
+            bash -c "set -e; bash /work/$name.sh" )
     if ! docker wait "$cid" | grep -qx 0; then
         docker logs "$cid" > "$log" 2>&1 || true
         echo "$name: the build failed. Last of $log:" >&2
@@ -155,7 +184,11 @@ for recipe in "$RECIPES"/*.sh; do
     # Packaged in a container of the finished image, so the helpers it ships
     # describe the build with the same code build-package.sh uses.
     img=$(docker commit "$cid" 2>/dev/null)
-    docker run --rm -v "$work":/work "$img" bash /work/pack.sh
+    # /sources as well: pkg_validate resolves the recipe's SOURCE glob against
+    # it to derive the version, so a packer that cannot see the tarball
+    # produces a package with no identity and no abi stamp.
+    docker run --rm -v "$SOURCES":/sources:ro -v "$work":/work "$img" \
+        bash /work/pack.sh "$name"
     docker rmi "$img" > /dev/null 2>&1 || true
 
     mv "$work/out/$name.tar.gz" "$PACKAGES_DIR/$name.tar.gz"
