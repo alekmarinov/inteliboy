@@ -126,9 +126,21 @@ sync:
 stage:
 	@tools/stage.sh $(DISTRO)
 
-# Root, because a package builds in a chroot.
+# In the LFS SDK container, and no longer as root.
+#
+# It used to be `sudo $(MAKE) -C $(LFS) distro-packages`, which built into
+# lfs's single shared overlay. Two builds at once overwrote each other
+# silently: on 6 September a ruby package came out holding 5166 audi files and
+# no ruby, which surfaced two days later as "Ruby 2.5 or higher is required"
+# in the middle of a WebKit configure; on 8 September an adapters build
+# cleared the package layer while a ruby rebuild was copying out of it.
+#
+# lfs has a lock now, so that is over — but a lock means waiting, sometimes
+# hours behind a wpewebkit compile. The container has the overlay's shape and
+# none of its sharing, and there is no fallback: see tools/build-packages.sh
+# for why a quiet one would be worse than stopping.
 distro-packages:
-	sudo $(MAKE) -C $(LFS) distro-packages DISTRO=$(DISTRO)
+	@tools/build-packages.sh $(DISTRO)
 
 ## version: what this image will call itself, and whether it agrees
 version:
