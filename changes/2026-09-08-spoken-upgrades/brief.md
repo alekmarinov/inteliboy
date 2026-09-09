@@ -120,7 +120,9 @@ stopping cogiti prints
 Seen on 192.168.1.117 after `lpkg upgrade` restarted the brain. Harmless — the
 process is already exiting — but a duty mid-check dies without tidying up, and
 the timers next door already do this properly: keep the handles, cancel them in
-the `finally` that closes the loop. Deferred deliberately rather than
+the `finally` that closes the loop. A second one joins it, seen on the same
+restart — `FaceOutput._arm_expiry.<locals>.countdown`, the task that takes a
+card off the screen after its linger. Same shape, same fix, same place. Deferred deliberately rather than
 forgotten; the user asked for it bundled rather than shipped on its own.
 
 ## Rollback
