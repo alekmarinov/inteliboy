@@ -98,6 +98,25 @@ if [ -n "$want" ] && [ "$want" != "$have" ]; then
     echo "  Refresh the image, or point LFS_SDK_IMAGE at the right one." >&2
     exit 1
 fi
+# The packer belongs to lfs, and ships with the base it describes.
+#
+# It was a copy here, and a copy per consumer has to track every change to a
+# format it does not own — forever, silently, and wrongly the first time
+# somebody forgets. So this checks that the image carries it and stops if it
+# does not, rather than reinstating a local one: a fallback copy is precisely
+# how the two would diverge again, and the divergence would not announce
+# itself. It would arrive as a package that installs and then does not work.
+docker run --rm "$IMAGE" test -r /usr/lib/lpkg/pkg-pack.sh 2>/dev/null || {
+    echo "build-packages.sh: $IMAGE has no /usr/lib/lpkg/pkg-pack.sh." >&2
+    echo >&2
+    echo "  The image predates the packer being shipped with it. Rebuild it:" >&2
+    echo "      make -C ../lfs sdk-docker TAG=12.4" >&2
+    echo >&2
+    echo "  There is deliberately no local copy to fall back to. The package" >&2
+    echo "  format is lfs's to define, and a second copy of it here would" >&2
+    echo "  drift out of step without saying so." >&2
+    exit 1; }
+
 echo "Building in $IMAGE  (abi $have, channel ${chan:-unknown})"
 
 mkdir -p "$PACKAGES_DIR" "$BASE_DIR/build/pkglogs"
@@ -151,7 +170,6 @@ for recipe in "$RECIPES"/*.sh; do
     # Under its own name: pack.sh takes the package name from the file, and a
     # recipe copied to "recipe.sh" produces a package called recipe.tar.gz.
     cp "$recipe" "$work/$name.sh"
-    cp "$BASE_DIR/tools/sdk/pack.sh" "$work/pack.sh"
     # What this package owned last time, so a rebuild is not mistaken for one
     # package overwriting another's files.
     : > "$work/mine"
@@ -188,7 +206,7 @@ for recipe in "$RECIPES"/*.sh; do
     # it to derive the version, so a packer that cannot see the tarball
     # produces a package with no identity and no abi stamp.
     docker run --rm -v "$SOURCES":/sources:ro -v "$work":/work "$img" \
-        bash /work/pack.sh "$name"
+        bash /usr/lib/lpkg/pkg-pack.sh "$name"
     docker rmi "$img" > /dev/null 2>&1 || true
 
     mv "$work/out/$name.tar.gz" "$PACKAGES_DIR/$name.tar.gz"
