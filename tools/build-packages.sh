@@ -80,7 +80,32 @@ docker image inspect "$IMAGE" > /dev/null 2>&1 || {
 # id is the only thing that says so: sonames cannot: a binary needing
 # GLIBC_2.38 asks for libc.so.6, which is what every glibc since 1997 has
 # called itself.
-want=$("$LFS_DIR/scripts/packages/abi-id.sh" 2>/dev/null || true)
+# Declared by the distro, so this does not depend on lfs being reachable.
+#
+# It used to come only from lfs/scripts/packages/abi-id.sh, and with lfs absent
+# `want` was empty and the comparison below was skipped without a word. A
+# build that quietly performs no ABI check is worse than one that stops: the
+# package installs and the device dies at its first exec.
+want=$(sed -n 's/^TARGET_ABI="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' \
+           "$DISTRO_DIR/distro.conf" 2>/dev/null | tail -1)
+if [ -z "$want" ]; then
+    echo "build-packages.sh: $DISTRO_DIR/distro.conf declares no TARGET_ABI." >&2
+    echo "  Without it nothing can say which core these packages are for, and" >&2
+    echo "  a package built against the wrong one installs and then does not" >&2
+    echo "  run. Add TARGET_ABI=\"<abi>\" to distro.conf." >&2
+    exit 1
+fi
+
+# And cross-checked against lfs when lfs is here, because two sources of one
+# fact that disagree is worth stopping for — it means either this file or that
+# build base has moved and nobody said so.
+measured=$("$LFS_DIR/scripts/packages/abi-id.sh" 2>/dev/null || true)
+if [ -n "$measured" ] && [ "$measured" != "$want" ]; then
+    echo "build-packages.sh: distro.conf says TARGET_ABI=$want but the lfs" >&2
+    echo "  tree next door measures $measured. One of them is stale, and" >&2
+    echo "  guessing which would publish packages for a core nobody has." >&2
+    exit 1
+fi
 have=$(docker image inspect --format '{{index .Config.Labels "org.intelibo.lfs.abi"}}' "$IMAGE")
 chan=$(docker image inspect --format '{{index .Config.Labels "org.intelibo.lfs.channel"}}' "$IMAGE")
 if [ -z "$have" ]; then
